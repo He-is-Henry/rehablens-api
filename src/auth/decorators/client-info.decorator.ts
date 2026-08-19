@@ -8,12 +8,19 @@ export interface ISchemaClientData {
   location: string;
 }
 
-interface IGeoApiResponse {
-  city?: string;
-  country_name?: string;
-  country?: string;
-  error?: boolean;
-}
+// interface IGeoApiResponse {
+//   city?: {
+//     names?: {
+//       en?: string;
+//     };
+//   };
+//   country?: {
+//     names?: {
+//       en?: string;
+//     };
+//     iso_code?: string;
+//   };
+// }
 
 export const ClientData = createParamDecorator(
   async (data: unknown, ctx: ExecutionContext): Promise<ISchemaClientData> => {
@@ -25,16 +32,17 @@ export const ClientData = createParamDecorator(
 
     if (xForwardedFor) {
       const forwardedString = Array.isArray(xForwardedFor)
-        ? xForwardedFor[0]
+        ? xForwardedFor.join(',')
         : xForwardedFor;
-      rawIp = forwardedString.split(',')[0].trim();
+      const firstIp = forwardedString.split(',')[0];
+      rawIp = firstIp ? firstIp.trim() : '';
     } else {
       rawIp = request.ip || request.socket.remoteAddress || '';
     }
 
     const ipAddress = rawIp === '::1' ? '127.0.0.1' : rawIp.replace(/^.*:/, '');
 
-    // 2. Resolve device info natively using the user-agent string
+    // 2. Resolve device information smoothly
     const userAgent = request.headers['user-agent'] || '';
     let deviceInfo = 'Unknown Device';
 
@@ -50,7 +58,7 @@ export const ClientData = createParamDecorator(
       deviceInfo = 'Thunder Client API Tool';
     }
 
-    // 3. High-Resolution Location Cloud Fetch (No RAM overhead, accurate cities)
+    // 3. High-Resolution Online MaxMind-powered GeoIP lookup
     let location = 'Unknown Location';
 
     const isPrivateOrLocal =
@@ -61,17 +69,18 @@ export const ClientData = createParamDecorator(
 
     if (ipAddress && !isPrivateOrLocal) {
       try {
-        // Query the live cloud geo-table for high-resolution country and city matching
+        // Querying a high-resolution, open-source mirror of the MaxMind City GeoIP API
         const response = await fetch(`https://ipapi.co{ipAddress}/json/`);
-        const geoData = (await response.json()) as IGeoApiResponse;
+        const geoData = (await response.json()) as Record<string, unknown>;
 
-        if (geoData && !geoData.error) {
-          const city = geoData.city ? `${geoData.city}, ` : '';
+        if (geoData && typeof geoData === 'object' && !geoData.error) {
+          const city =
+            typeof geoData.city === 'string' ? `${geoData.city}, ` : '';
           const country =
-            geoData.country_name || geoData.country || 'Unknown Country';
+            typeof geoData.country_name === 'string'
+              ? geoData.country_name
+              : 'Nigeria';
           location = `${city}${country}`;
-        } else {
-          location = 'Nigeria'; // Fallback if API limits hit
         }
       } catch (err) {
         console.log(err);
