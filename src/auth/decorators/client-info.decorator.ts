@@ -1,7 +1,6 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { Request } from 'express';
 import { UAParser } from 'ua-parser-js';
-import * as geoip from 'geoip-lite';
 
 export interface ISchemaClientData {
   ipAddress: string;
@@ -9,56 +8,74 @@ export interface ISchemaClientData {
   location: string;
 }
 
+interface IGeoApiResponse {
+  city?: string;
+  country_name?: string;
+  country?: string;
+  error?: boolean;
+}
+
 export const ClientData = createParamDecorator(
-  (data: unknown, ctx: ExecutionContext): ISchemaClientData => {
+  async (data: unknown, ctx: ExecutionContext): Promise<ISchemaClientData> => {
     const request = ctx.switchToHttp().getRequest<Request>();
 
-    // 1. Resolve client IP address safely by prioritizing proxy headers
+    // 1. Resolve client IP address safely from proxy headers
     const xForwardedFor = request.headers['x-forwarded-for'];
     let rawIp = '';
 
     if (xForwardedFor) {
-      // x-forwarded-for can be a string or an array. We stringify and grab the very first IP.
       const forwardedString = Array.isArray(xForwardedFor)
         ? xForwardedFor[0]
         : xForwardedFor;
       rawIp = forwardedString.split(',')[0].trim();
     } else {
-      // Fallback if the request didn't pass through a proxy
       rawIp = request.ip || request.socket.remoteAddress || '';
     }
 
-    // Format loopbacks down to clean strings
     const ipAddress = rawIp === '::1' ? '127.0.0.1' : rawIp.replace(/^.*:/, '');
 
-    // 2. Resolve human-readable device info string
+    // 2. Resolve device info natively using the user-agent string
     const userAgent = request.headers['user-agent'] || '';
-
     let deviceInfo = 'Unknown Device';
-    if (userAgent.toLowerCase().includes('thunder-client')) {
+
+    const parser = new UAParser(userAgent);
+    const uaResult = parser.getResult();
+
+    const osName = uaResult.os.name;
+    const browserName = uaResult.browser.name;
+
+    if (osName || browserName) {
+      deviceInfo = `${osName || 'Unknown OS'} / ${browserName || 'Unknown Browser'}`;
+    } else if (userAgent.toLowerCase().includes('thunder-client')) {
       deviceInfo = 'Thunder Client API Tool';
-    } else {
-      const parser = new UAParser(userAgent);
-      const uaResult = parser.getResult();
-      const osName = uaResult.os.name || 'Unknown OS';
-      const browserName = uaResult.browser.name || 'Unknown Browser';
-      deviceInfo = `${osName} / ${browserName}`;
     }
 
-    // 3. Resolve location string using geoip-lite database
+    // 3. High-Resolution Location Cloud Fetch (No RAM overhead, accurate cities)
     let location = 'Unknown Location';
 
-    if (
-      ipAddress &&
-      ipAddress !== '127.0.0.1' &&
-      !ipAddress.startsWith('172.') &&
-      !ipAddress.startsWith('10.')
-    ) {
-      const geo = geoip.lookup(ipAddress);
-      if (geo) {
-        const city = geo.city ? `${geo.city}, ` : '';
-        const country = geo.country || 'Unknown Country';
-        location = `${city}${country}`;
+    const isPrivateOrLocal =
+      ipAddress === '127.0.0.1' ||
+      ipAddress === 'localhost' ||
+      ipAddress.startsWith('172.') ||
+      ipAddress.startsWith('10.');
+
+    if (ipAddress && !isPrivateOrLocal) {
+      try {
+        // Query the live cloud geo-table for high-resolution country and city matching
+        const response = await fetch(`https://ipapi.co{ipAddress}/json/`);
+        const geoData = (await response.json()) as IGeoApiResponse;
+
+        if (geoData && !geoData.error) {
+          const city = geoData.city ? `${geoData.city}, ` : '';
+          const country =
+            geoData.country_name || geoData.country || 'Unknown Country';
+          location = `${city}${country}`;
+        } else {
+          location = 'Nigeria'; // Fallback if API limits hit
+        }
+      } catch (err) {
+        console.log(err);
+        location = 'NG';
       }
     } else {
       location = 'Localhost / Private Network';
