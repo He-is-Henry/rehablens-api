@@ -1,6 +1,7 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { Request } from 'express';
 import { UAParser } from 'ua-parser-js';
+import * as geoip from 'geoip-lite';
 
 export interface ISchemaClientData {
   ipAddress: string;
@@ -8,22 +9,8 @@ export interface ISchemaClientData {
   location: string;
 }
 
-// interface IGeoApiResponse {
-//   city?: {
-//     names?: {
-//       en?: string;
-//     };
-//   };
-//   country?: {
-//     names?: {
-//       en?: string;
-//     };
-//     iso_code?: string;
-//   };
-// }
-
 export const ClientData = createParamDecorator(
-  async (data: unknown, ctx: ExecutionContext): Promise<ISchemaClientData> => {
+  (data: unknown, ctx: ExecutionContext): ISchemaClientData => {
     const request = ctx.switchToHttp().getRequest<Request>();
 
     // 1. Resolve client IP address safely from proxy headers
@@ -69,19 +56,10 @@ export const ClientData = createParamDecorator(
 
     if (ipAddress && !isPrivateOrLocal) {
       try {
-        // Querying a high-resolution, open-source mirror of the MaxMind City GeoIP API
-        const response = await fetch(`https://ipapi.co{ipAddress}/json/`);
-        const geoData = (await response.json()) as Record<string, unknown>;
-
-        if (geoData && typeof geoData === 'object' && !geoData.error) {
-          const city =
-            typeof geoData.city === 'string' ? `${geoData.city}, ` : '';
-          const country =
-            typeof geoData.country_name === 'string'
-              ? geoData.country_name
-              : 'Nigeria';
-          location = `${city}${country}`;
-        }
+        const geo = geoip.lookup(ipAddress);
+        location = geo
+          ? `${geo.city ? geo.city + ', ' : ''}${geo.country}`
+          : 'Unknown Location';
       } catch (err) {
         console.log(err);
         location = 'NG';
