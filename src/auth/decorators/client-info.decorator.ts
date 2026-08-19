@@ -13,25 +13,47 @@ export const ClientData = createParamDecorator(
   (data: unknown, ctx: ExecutionContext): ISchemaClientData => {
     const request = ctx.switchToHttp().getRequest<Request>();
 
-    // 1. Resolve client IP address
-    const rawIp = request.ip || request.socket.remoteAddress || '';
-    // Format IPv6 looped back standard down to clean IPv4 if testing locally
+    // 1. Resolve client IP address safely by prioritizing proxy headers
+    const xForwardedFor = request.headers['x-forwarded-for'];
+    let rawIp = '';
+
+    if (xForwardedFor) {
+      // x-forwarded-for can be a string or an array. We stringify and grab the very first IP.
+      const forwardedString = Array.isArray(xForwardedFor)
+        ? xForwardedFor[0]
+        : xForwardedFor;
+      rawIp = forwardedString.split(',')[0].trim();
+    } else {
+      // Fallback if the request didn't pass through a proxy
+      rawIp = request.ip || request.socket.remoteAddress || '';
+    }
+
+    // Format loopbacks down to clean strings
     const ipAddress = rawIp === '::1' ? '127.0.0.1' : rawIp.replace(/^.*:/, '');
 
     // 2. Resolve human-readable device info string
     const userAgent = request.headers['user-agent'] || '';
-    const parser = new UAParser(userAgent);
-    const uaResult = parser.getResult();
 
-    const osName = uaResult.os.name || 'Unknown OS';
-    const browserName = uaResult.browser.name || 'Unknown Browser';
-    const deviceInfo = `${osName} / ${browserName}`;
+    let deviceInfo = 'Unknown Device';
+    if (userAgent.toLowerCase().includes('thunder-client')) {
+      deviceInfo = 'Thunder Client API Tool';
+    } else {
+      const parser = new UAParser(userAgent);
+      const uaResult = parser.getResult();
+      const osName = uaResult.os.name || 'Unknown OS';
+      const browserName = uaResult.browser.name || 'Unknown Browser';
+      deviceInfo = `${osName} / ${browserName}`;
+    }
 
     // 3. Resolve location string using geoip-lite database
     let location = 'Unknown Location';
 
-    // Local addresses will return null from lookup databases
-    if (ipAddress && ipAddress !== '127.0.0.1' && ipAddress !== 'localhost') {
+    if (
+      ipAddress &&
+      ipAddress !== '127.0.0.1' &&
+      !ipAddress.startsWith('172.') &&
+      !ipAddress.startsWith('10.')
+    ) {
       const geo = geoip.lookup(ipAddress);
       if (geo) {
         const city = geo.city ? `${geo.city}, ` : '';
@@ -39,7 +61,7 @@ export const ClientData = createParamDecorator(
         location = `${city}${country}`;
       }
     } else {
-      location = 'Localhost (Development)';
+      location = 'Localhost / Private Network';
     }
 
     return {
