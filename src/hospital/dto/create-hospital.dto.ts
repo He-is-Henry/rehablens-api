@@ -13,6 +13,9 @@ export class CreateHospitalDto {
   email!: string;
 
   @IsString()
+  phone?: string;
+
+  @IsString()
   address!: string;
 
   @Allow()
