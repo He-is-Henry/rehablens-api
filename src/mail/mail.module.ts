@@ -8,24 +8,21 @@ import { MailController } from './mail.controller';
 @Module({
   imports: [
     MailerModule.forRootAsync({
-      imports: [ConfigModule], // Allows access to environment variables
+      imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => {
         const OAuth2 = google.auth.OAuth2;
 
-        // Initialize the Google OAuth2 client
         const oauth2Client = new OAuth2(
           configService.get<string>('GOOGLE_CLIENT_ID'),
           configService.get<string>('GOOGLE_CLIENT_SECRET'),
-          'https://google.com', // Redirect URI used to generate refresh token
+          'https://google.com',
         );
 
-        // Supply refresh token to get a live access token
         oauth2Client.setCredentials({
           refresh_token: configService.get<string>('GOOGLE_REFRESH_TOKEN'),
         });
 
-        // Request an access token dynamically from Google's authorization servers
         const accessToken = await new Promise<string>((resolve, reject) => {
           oauth2Client.getAccessToken(
             (err: Error | null, token?: string | null) => {
@@ -44,12 +41,12 @@ import { MailController } from './mail.controller';
 
         const fromEmail = configService.get<string>('EMAIL_FROM');
 
-        // Configure Nodemailer transport settings
         return {
           transport: {
             host: 'smtp.gmail.com',
             port: 587,
             secure: false,
+            localAddress: '0.0.0.0',
             auth: {
               type: 'OAuth2',
               user: fromEmail,
@@ -60,7 +57,7 @@ import { MailController } from './mail.controller';
             },
           },
           defaults: {
-            from: `"Rehab Lens" <${fromEmail}>`, // Default display sender configuration
+            from: `"Rehab Lens" <${fromEmail}>`,
           },
         };
       },
