@@ -6,7 +6,9 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
+  Res,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
@@ -21,7 +23,7 @@ import {
   type ISchemaClientData,
 } from './decorators/client-info.decorator';
 import { Public } from 'src/common/decorators/public.decorator';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { EditProfileDto } from './dto/update-auth.dto';
 
 @Controller('auth')
@@ -82,5 +84,13 @@ export class AuthController {
   @Post('reset-password')
   resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     return this.authService.resetPassword(resetPasswordDto);
+  }
+
+  @Public()
+  @Get('reset-password-redirect')
+  handleResetRedirect(@Query('token') token: string, @Res() res: Response) {
+    const appDeepLink = `rehablens://reset-password?token=${token}`;
+
+    return res.redirect(302, appDeepLink);
   }
 }
