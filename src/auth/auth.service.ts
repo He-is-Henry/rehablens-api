@@ -42,6 +42,7 @@ export class AuthService {
     if (authResult.error || !authResult.passwordCorect) {
       throw new UnauthorizedException(authResult.message);
     }
+
     const user = authResult.user;
 
     if (!user.isActive)

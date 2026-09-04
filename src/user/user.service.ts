@@ -138,7 +138,7 @@ export class UserService {
         error: true,
         message: 'Incorrect password',
       };
-    const { password, ...safeUser } = user;
+    const { password, ...safeUser } = user.toObject();
     return {
       error: false,
       passwordCorect,
@@ -147,9 +147,11 @@ export class UserService {
   }
 
   update(id: string, updateUserDto: UpdateUserDto) {
-    return this.userModel.findByIdAndUpdate(id, updateUserDto, {
-      returnDocument: 'after',
-    });
+    return this.userModel
+      .findByIdAndUpdate(id, updateUserDto, {
+        returnDocument: 'after',
+      })
+      .select('-password');
   }
 
   remove(id: string) {
