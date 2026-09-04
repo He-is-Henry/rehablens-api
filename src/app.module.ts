@@ -11,7 +11,6 @@ import { JwtModule } from '@nestjs/jwt';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { PatientModule } from './patient/patient.module';
 import { StringValue } from 'ms';
-import { MailService } from './mail/mail.service';
 
 @Module({
   imports: [
@@ -55,7 +54,6 @@ import { MailService } from './mail/mail.service';
       useClass: RolesGuard,
     },
     AppService,
-    MailService,
   ],
 })
 export class AppModule {}
