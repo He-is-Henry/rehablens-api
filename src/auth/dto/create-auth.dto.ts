@@ -26,9 +26,18 @@ export class ResetPayload {
 }
 
 export class ResetPasswordDto {
+  @IsOptional()
+  @IsString()
   token?: string;
+
+  @IsString()
   email!: string;
+
+  @IsString()
   newPassword!: string;
+
+  @IsString()
+  @IsOptional()
   manualCode?: string;
 }
 
