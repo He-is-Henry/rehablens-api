@@ -46,7 +46,6 @@ import { MailController } from './mail.controller';
             host: 'smtp.gmail.com',
             port: 587,
             secure: false,
-            localAddress: '0.0.0.0',
             auth: {
               type: 'OAuth2',
               user: fromEmail,
