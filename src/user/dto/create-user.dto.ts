@@ -1,5 +1,4 @@
 import { IsBoolean, IsEmail, IsEnum, IsString } from 'class-validator';
-import mongoose from 'mongoose';
 
 export enum UserRole {
   ADMIN = 'admin',
@@ -9,6 +8,9 @@ export enum UserRole {
 }
 
 export class CreateUserDto {
+  @IsString()
+  name!: string;
+
   @IsEmail()
   email!: string;
 
@@ -16,19 +18,16 @@ export class CreateUserDto {
   password!: string;
 }
 
-export class CreateUserInternalDto {
-  @IsEmail()
-  email!: string;
-
-  @IsString()
-  password!: string;
-
+export class CreateUserInternalDto extends CreateUserDto {
   @IsEnum(UserRole)
   role!: UserRole;
 
   @IsString()
-  hospitalId?: mongoose.Types.ObjectId;
+  hospitalId?: string;
 
   @IsBoolean()
   isActive?: boolean;
+
+  @IsBoolean()
+  isPioneer?: boolean;
 }

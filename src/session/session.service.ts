@@ -2,8 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as crypto from 'crypto';
 import { Session } from './session.schema';
-import { Model } from 'mongoose';
+import mongoose, { Model } from 'mongoose';
 import { CreateSessionDto } from './dto/create-session-dto';
+import { UpdateSessionDto } from './dto/update-session-dto';
 
 @Injectable()
 export class SessionService {
@@ -14,7 +15,7 @@ export class SessionService {
     return crypto.createHash('sha256').update(token).digest('hex');
   }
 
-  async create(createSessionDto: CreateSessionDto) {
+  async init(createSessionDto: CreateSessionDto) {
     const filter = { userId: createSessionDto.userId };
 
     const extraSessions = await this.sessionModel
@@ -28,11 +29,40 @@ export class SessionService {
       const idsToDelete = extraSessions.map((s) => s._id);
       await this.sessionModel.deleteMany({ _id: { $in: idsToDelete } });
     }
+    return new this.sessionModel(createSessionDto);
+  }
 
-    const hashedToken = this.hashToken(createSessionDto.refreshToken);
-    createSessionDto.refreshToken = hashedToken;
+  getUserSessions(userId: string) {
+    return this.sessionModel.find({ userId });
+  }
 
-    const session = await this.sessionModel.create(createSessionDto);
-    return session;
+  findById(id: string) {
+    return this.sessionModel.findById(id);
+  }
+
+  getSession(userId: string, token: string) {
+    const refreshToken = this.hashToken(token);
+    return this.sessionModel.findOne({
+      refreshToken,
+      userId,
+    });
+  }
+
+  updateSession(
+    id: mongoose.Types.ObjectId,
+    updateSessionDto: UpdateSessionDto,
+  ) {
+    const rt = updateSessionDto.refreshToken;
+    if (rt) updateSessionDto.refreshToken = this.hashToken(rt);
+    return this.sessionModel.findByIdAndUpdate(id, updateSessionDto, {
+      returnDocument: 'after',
+    });
+  }
+
+  deleteSessionExcept(userId: string, sessionId: string) {
+    return this.sessionModel.deleteMany({
+      userId,
+      _id: { $ne: sessionId },
+    });
   }
 }

@@ -1,12 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { CreateUserInternalDto, UserRole } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectModel } from '@nestjs/mongoose';
-import { User } from './user.schema';
-import { Model } from 'mongoose';
+import { User, UserDocument } from './user.schema';
+import mongoose, { Model } from 'mongoose';
 import { CounterService } from 'src/counter/counter.service';
 import { LoginDto } from 'src/auth/dto/create-auth.dto';
 import * as bcrypt from 'bcrypt';
+
+interface SearchFilter {
+  role: UserRole;
+  hospitalId?: string;
+}
 
 @Injectable()
 export class UserService {
@@ -16,13 +21,22 @@ export class UserService {
   ) {}
 
   async create(createUserDto: CreateUserInternalDto) {
+    const userAlreadyExists = await this.userModel.exists({
+      email: createUserDto.email,
+    });
+
+    if (userAlreadyExists)
+      throw new ConflictException('User email already in use');
+
     const role = createUserDto.role;
     const paddedSequence = await this.counterService.createCount(role);
     const keyword = this.getRoleKeyword(role);
+    const password = await bcrypt.hash(createUserDto.password, 10);
 
     const customId = `${keyword}-${paddedSequence}`;
     return this.userModel.create({
       ...createUserDto,
+      password,
       customId,
     });
   }
@@ -54,15 +68,56 @@ export class UserService {
     return keyword;
   }
 
-  findAll() {
-    return this.userModel.find();
+  findAll(filter?: { hospitalId: string }) {
+    return this.userModel.find(filter).select('-password');
+  }
+
+  search(query: string, role: UserRole, hospitalId?: string) {
+    const regex = new RegExp(query, 'i');
+
+    const filter: SearchFilter = {
+      role,
+    };
+
+    if (hospitalId) filter.hospitalId = hospitalId;
+
+    return this.userModel
+      .find({
+        ...filter,
+        $or: [{ name: regex }, { customId: regex }],
+      })
+      .select('name customId email')
+      .limit(10);
+  }
+
+  findOne(filter: Partial<UserDocument>) {
+    return this.userModel.findOne(filter);
   }
 
   findById(id: string) {
-    return this.userModel.findById(id).lean();
+    return this.userModel.findById(id);
+  }
+
+  exists(filter: Partial<UserDocument>) {
+    return this.userModel.exists(filter).lean();
+  }
+  existsById(id: string) {
+    const _id = new mongoose.Types.ObjectId(id);
+    return this.exists({ _id });
   }
   findByEmail(email: string) {
-    return this.userModel.findOne({ email }).lean();
+    return this.userModel.findOne({ email });
+  }
+
+  findOneAndUpdate(
+    filter: Partial<UserDocument>,
+    updateUserDto: UpdateUserDto,
+  ) {
+    return this.userModel
+      .findOneAndUpdate(filter, updateUserDto, {
+        returnDocument: 'after',
+      })
+      .select('-password');
   }
 
   async authenticate(loginDto: LoginDto) {

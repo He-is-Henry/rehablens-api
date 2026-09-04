@@ -6,6 +6,7 @@ import { Hospital, HospitalSchema } from './hospital.schema';
 import { CounterModule } from 'src/counter/counter.module';
 import { UserModule } from 'src/user/user.module';
 import { User, UserSchema } from 'src/user/user.schema';
+import { PatientHospitalModule } from 'src/patient-hospital/patient-hospital.module';
 
 @Module({
   imports: [
@@ -15,8 +16,10 @@ import { User, UserSchema } from 'src/user/user.schema';
     ]),
     UserModule,
     CounterModule,
+    PatientHospitalModule,
   ],
   controllers: [HospitalController],
   providers: [HospitalService],
+  exports: [HospitalService],
 })
 export class HospitalModule {}

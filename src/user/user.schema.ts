@@ -5,6 +5,9 @@ import { UserRole } from './dto/create-user.dto';
 @Schema()
 export class User {
   @Prop({ required: true })
+  name!: string;
+
+  @Prop({ required: true, unique: true })
   email!: string;
 
   @Prop({ required: true, unique: true })
@@ -21,6 +24,9 @@ export class User {
 
   @Prop({ required: true, default: true })
   isActive!: boolean;
+
+  @Prop({ required: true, default: false })
+  isPioneer!: boolean;
 }
 
 export type UserDocument = User & Document;

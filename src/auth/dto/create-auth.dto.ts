@@ -1,4 +1,4 @@
-import { IsEmail, IsString } from 'class-validator';
+import { IsEmail, IsOptional, IsString } from 'class-validator';
 import mongoose from 'mongoose';
 import { UserRole } from 'src/user/dto/create-user.dto';
 
@@ -13,10 +13,23 @@ export class LoginDto {
 }
 
 export class Payload {
-  id!: mongoose.Types.ObjectId;
+  id!: string;
   customId!: string;
   role!: UserRole;
-  hospitalId?: mongoose.Types.ObjectId;
+  sessionId!: string;
+  hospitalId?: string;
+}
+
+export class ResetPayload {
+  userId!: string;
+  code!: string;
+}
+
+export class ResetPasswordDto {
+  token?: string;
+  email!: string;
+  newPassword!: string;
+  manualCode?: string;
 }
 
 export class PayloadUser {
@@ -24,4 +37,20 @@ export class PayloadUser {
   customId!: string;
   role!: UserRole;
   hospitalId?: mongoose.Types.ObjectId;
+}
+
+export class RefreshDto {
+  @IsString()
+  refreshToken!: string;
+}
+
+export class LogoutDto {
+  @IsOptional()
+  @IsString()
+  refreshToken?: string;
+}
+
+export class ForgotPasswordDto {
+  @IsEmail()
+  email!: string;
 }
