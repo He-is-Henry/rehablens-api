@@ -1,17 +1,20 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { MailerService } from '@nestjs-modules/mailer';
-
-// Define a localized strict interface to bypass the third-party 'any' types
-interface SafeMailResponse {
-  messageId?: string;
-}
+import {
+  Injectable,
+  Inject,
+  InternalServerErrorException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { gmail_v1 } from 'googleapis';
 
 @Injectable()
 export class MailService {
-  constructor(private readonly mailerService: MailerService) {}
+  constructor(
+    @Inject('GMAIL_CLIENT') private readonly gmail: gmail_v1.Gmail,
+    private readonly configService: ConfigService,
+  ) {}
 
   /**
-   * Sends a simple email using the pre-configured Google OAuth2 transport
+   * Sends an email via the Google Gmail REST API over HTTPS
    * @param to The recipient's email address
    * @param subject The email subject line
    * @param body Text or HTML body content
@@ -22,25 +25,43 @@ export class MailService {
     body: string,
   ): Promise<{ success: boolean; messageId: string }> {
     try {
-      // Treat the third-party response as unknown to avoid unsafe any assignment
-      const response: unknown = await this.mailerService.sendMail({
-        to,
-        subject,
-        text: body.replace(/<[^>]*>/g, ''),
-        html: body,
-      });
+      const fromEmail = this.configService.get<string>('EMAIL_FROM');
 
-      // Map it cleanly by checking if the structure exists safely
-      const info = response as SafeMailResponse;
+      // Construct clean standard MIME headers + message body string
+      const messageParts = [
+        `From: "Rehab Lens" <${fromEmail}>`,
+        `To: ${to}`,
+        'Content-Type: text/html; charset=utf-8',
+        'MIME-Version: 1.0',
+        `Subject: ${subject}`,
+        '',
+        body,
+      ];
+      const message = messageParts.join('\n');
+
+      // Convert to Base64URL safe format required by Google API
+      const encodedMessage = Buffer.from(message)
+        .toString('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+
+      // Execute dispatch using HTTPS instead of raw TCP SMTP sockets
+      const response = await this.gmail.users.messages.send({
+        userId: 'me',
+        requestBody: {
+          raw: encodedMessage,
+        },
+      });
 
       return {
         success: true,
-        messageId: info?.messageId || 'unknown-id',
+        messageId: response.data.id || 'unknown-id',
       };
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
-      console.error('Email dispatch failed:', error);
+      console.error('HTTPS Email dispatch failed:', error);
       throw new InternalServerErrorException(
         `Failed to dispatch email: ${errorMessage}`,
       );
