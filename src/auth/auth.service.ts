@@ -24,6 +24,8 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { UserDocument } from 'src/user/user.schema';
 import { OtpDocument } from 'src/otp/otp.schema';
+import mongoose from 'mongoose';
+import { HospitalDocument } from 'src/hospital/hospital.schema';
 
 @Injectable()
 export class AuthService {
@@ -78,13 +80,67 @@ export class AuthService {
     };
   }
 
+  async changeInitialPassword(id: string, newPassword: string) {
+    const filter: Partial<UserDocument> = {
+      _id: new mongoose.Types.ObjectId(id),
+      mustChangePassword: true,
+    };
+    const update: Partial<UserDocument> = {
+      password: await bcrypt.hash(newPassword, 10),
+      mustChangePassword: false,
+    };
+
+    const user = await this.userService.findOneAndUpdate(filter, update);
+
+    if (!user) throw new NotFoundException('User profile not found');
+
+    return {
+      message: 'Password reset successfully',
+      user,
+    };
+  }
+
+  async changePassword(
+    id: string,
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    const user = await this.userService.findById(id).select('+password');
+
+    if (!user) throw new NotFoundException('User profile not found');
+
+    const passwordCorrect = await bcrypt.compare(
+      currentPassword,
+      user.password,
+    );
+
+    if (!passwordCorrect)
+      throw new ForbiddenException('Incorrect current password, try again');
+
+    const filter = {
+      _id: new mongoose.Types.ObjectId(id),
+    };
+    const update = {
+      password: await bcrypt.hash(newPassword, 10),
+    };
+
+    await this.userService.findOneAndUpdate(filter, update);
+
+    return {
+      message: 'Password reset successfully',
+    };
+  }
+
   signTokens(user: PayloadUser, sessionId: string) {
+    console.log(user);
+
     const payload: Payload = {
       id: user._id.toString(),
       customId: user.customId,
       role: user.role,
-      hospitalId: user.hospitalId?.toString(),
+      hospitalId: user?.hospitalId?._id?.toString(),
       sessionId,
+      mustChangePassword: user.mustChangePassword,
     };
     const accessToken = this.jwtService.sign(payload);
     const refreshToken = this.jwtService.sign(payload, {
@@ -99,10 +155,7 @@ export class AuthService {
   }
 
   async getProfile(id: string, sessionId: string) {
-    const user = await this.userService
-      .findById(id)
-      .select('-password')
-      .populate('hospitalId');
+    const user = await this.userService.findById(id).populate('hospitalId');
     const sessionDocs = await this.sessionService.getUserSessions(id);
 
     const sessions = sessionDocs.map((s) => {
@@ -136,7 +189,9 @@ export class AuthService {
 
     const userId = decoded.id;
 
-    const user = await this.userService.findById(userId).lean();
+    const user = await this.userService
+      .findById(userId)
+      .populate<{ hospitalId: HospitalDocument }>('hospitalId');
 
     if (!user) throw new UnauthorizedException("User doens't exist");
     if (!user.isActive)
@@ -331,7 +386,9 @@ export class AuthService {
         secret: this.configService.get<string>('RESET_PASSWORD_SECRET'),
       });
 
-      const user = await this.userService.findById(decoded.userId);
+      const user = await this.userService
+        .findById(decoded.userId)
+        .select('+password');
       if (!user) throw new NotFoundException('User does not exist');
 
       return { canVerify: true, user, match };
@@ -344,7 +401,7 @@ export class AuthService {
   }
 
   async verifyResetCode(manualCode: string, email: string) {
-    const user = await this.userService.findByEmail(email);
+    const user = await this.userService.findByEmail(email).select('+password');
     if (!user) throw new NotFoundException('User not found');
 
     const match = await this.otpService.findByUserId(user._id.toString());

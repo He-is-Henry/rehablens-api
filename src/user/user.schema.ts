@@ -13,7 +13,7 @@ export class User {
   @Prop({ required: true, unique: true })
   customId!: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, select: false })
   password!: string;
 
   @Prop({ required: true })
@@ -27,6 +27,9 @@ export class User {
 
   @Prop({ required: true, default: false })
   isPioneer!: boolean;
+
+  @Prop({ required: true, default: false })
+  mustChangePassword!: boolean;
 }
 
 export type UserDocument = User & Document;

@@ -23,6 +23,8 @@ import {
   LinkPatientDto,
 } from 'src/staff/dto/update-staff.dto';
 import { UserService } from 'src/user/user.service';
+import { UpdateAssignmentDto } from 'src/assignment/dto/update-assignment.dto';
+import { CreateAssignmentDto } from 'src/assignment/dto/create-assignment.dto';
 
 @Controller('hospital')
 export class HospitalController {
@@ -98,7 +100,11 @@ export class HospitalController {
       hospitalId: new mongoose.Types.ObjectId(req.user!.hospitalId),
       isPioneer: false,
     };
-    return this.hospitalService.updateStaff(filter, updateStaffDto);
+    return this.hospitalService.updateStaff(
+      filter,
+      updateStaffDto,
+      req.user!.id,
+    );
   }
 
   // search staff
@@ -109,7 +115,6 @@ export class HospitalController {
   }
 
   // patients
-
   @Roles(UserRole.HOSPITAL_ADMIN)
   @Post('patient/:id')
   linkPatient(
@@ -126,10 +131,15 @@ export class HospitalController {
 
   @Roles(UserRole.HOSPITAL_ADMIN)
   @Get('patient')
-  getLinkedPatients(@Query('filter') filter: string, @Req() req: Request) {
+  getLinkedPatients(
+    @Query('filter') filter: string,
+    @Query('staffId') staffId: string,
+    @Req() req: Request,
+  ) {
     return this.hospitalService.getLinkedPatients(
       req.user!.hospitalId!,
       filter,
+      staffId,
     );
   }
 
@@ -157,5 +167,56 @@ export class HospitalController {
   @Get('patients/search')
   searcPatients(@Query('q') query: string) {
     return this.hospitalService.searchPatients(query);
+  }
+
+  @Roles(UserRole.HOSPITAL_ADMIN)
+  @Post('assignment')
+  createAssignment(@Body() dto: CreateAssignmentDto, @Req() req: Request) {
+    return this.hospitalService.createAssignment(
+      dto,
+      req.user!.hospitalId!,
+      req.user!.id,
+    );
+  }
+
+  @Roles(UserRole.HOSPITAL_ADMIN)
+  @Get('assignment')
+  getAssignments(@Query('patientId') patientId: string, @Req() req: Request) {
+    return this.hospitalService.getAssignments(
+      req.user!.hospitalId!,
+      patientId,
+    );
+  }
+
+  @Roles(UserRole.HOSPITAL_ADMIN)
+  @Get('assignment/:id')
+  getAssignmentById(@Param('id') id: string, @Req() req: Request) {
+    return this.hospitalService.getAssignmentById(id, req.user!.hospitalId!);
+  }
+
+  @Roles(UserRole.HOSPITAL_ADMIN)
+  @Patch('assignment/:id')
+  updateAssignment(
+    @Param('id') id: string,
+    @Body() dto: UpdateAssignmentDto,
+    @Req() req: Request,
+  ) {
+    return this.hospitalService.updateAssignment(
+      id,
+      req.user!.hospitalId!,
+      dto,
+    );
+  }
+
+  @Roles(UserRole.HOSPITAL_ADMIN)
+  @Get('assignment/:assignmentId/session-results')
+  getSessionResults(
+    @Param('assignmentId') assignmentId: string,
+    @Req() req: Request,
+  ) {
+    return this.hospitalService.getSessionResults(
+      assignmentId,
+      req.user!.hospitalId!,
+    );
   }
 }

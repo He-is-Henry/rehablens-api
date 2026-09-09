@@ -1,7 +1,13 @@
-import { IsEnum } from 'class-validator';
-import { CreateUserDto, UserRole } from 'src/user/dto/create-user.dto';
+import { IsEmail, IsEnum, IsString } from 'class-validator';
+import { UserRole } from 'src/user/dto/create-user.dto';
 
-export class CreateStaffDto extends CreateUserDto {
+export class CreateStaffDto {
+  @IsString()
+  name!: string;
+
+  @IsEmail()
+  email!: string;
+
   @IsEnum(UserRole)
   role!: UserRole;
 }

@@ -17,6 +17,8 @@ import {
   LogoutDto,
   ForgotPasswordDto,
   ResetPasswordDto,
+  ChangeInitialPasswordDto,
+  ChangePasswordDto,
 } from './dto/create-auth.dto';
 import {
   ClientData,
@@ -72,6 +74,29 @@ export class AuthController {
   @Delete('session/:sessionId')
   revokeSession(@Param('sessionId') sessionId: string, @Req() req: Request) {
     return this.authService.revokeSession(req.user!.id, sessionId);
+  }
+
+  @Post('change-initial-password')
+  changeInitialPassword(
+    @Req() req: Request,
+    @Body() changeInitialPasswordDto: ChangeInitialPasswordDto,
+  ) {
+    return this.authService.changeInitialPassword(
+      req.user!.id,
+      changeInitialPasswordDto.newPassword,
+    );
+  }
+
+  @Patch('change-password')
+  changePassword(
+    @Req() req: Request,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ) {
+    return this.authService.changePassword(
+      req.user!.id,
+      changePasswordDto.currentPassword,
+      changePasswordDto.newPassword,
+    );
   }
 
   @Public()

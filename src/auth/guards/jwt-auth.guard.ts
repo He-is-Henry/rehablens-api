@@ -1,6 +1,7 @@
 import {
   CanActivate,
   ExecutionContext,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -37,8 +38,22 @@ export class JwtAuthGuard implements CanActivate {
     try {
       const payload: Payload = await this.jwtService.verifyAsync(token);
       console.log(payload);
+
+      if (
+        payload.mustChangePassword &&
+        !request.url.includes('/auth/change-initial-password') &&
+        !request.url.includes('/auth/profile')
+      ) {
+        throw new ForbiddenException({
+          statusCode: 403,
+          message: 'You must change your temporary password before proceeding.',
+          error: 'MustChangePassword',
+        });
+      }
+
       request.user = payload;
     } catch (e) {
+      if (e instanceof ForbiddenException) throw e;
       console.log(e);
       throw new UnauthorizedException(
         'Session expired or invalid authentication token',

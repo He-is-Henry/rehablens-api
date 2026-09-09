@@ -1,4 +1,10 @@
-import { IsBoolean, IsEmail, IsEnum, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsEnum,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export enum UserRole {
   ADMIN = 'admin',
@@ -22,12 +28,18 @@ export class CreateUserInternalDto extends CreateUserDto {
   @IsEnum(UserRole)
   role!: UserRole;
 
+  @IsOptional()
   @IsString()
   hospitalId?: string;
 
+  @IsOptional()
   @IsBoolean()
   isActive?: boolean;
 
   @IsBoolean()
   isPioneer?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  mustChangePassword?: boolean;
 }

@@ -1,5 +1,6 @@
 import { IsEmail, IsOptional, IsString } from 'class-validator';
 import mongoose from 'mongoose';
+import { HospitalDocument } from 'src/hospital/hospital.schema';
 import { UserRole } from 'src/user/dto/create-user.dto';
 
 export class CreateAuthDto {}
@@ -18,6 +19,7 @@ export class Payload {
   role!: UserRole;
   sessionId!: string;
   hospitalId?: string;
+  mustChangePassword!: boolean;
 }
 
 export class ResetPayload {
@@ -45,7 +47,8 @@ export class PayloadUser {
   _id!: mongoose.Types.ObjectId;
   customId!: string;
   role!: UserRole;
-  hospitalId?: mongoose.Types.ObjectId;
+  hospitalId?: HospitalDocument;
+  mustChangePassword!: boolean;
 }
 
 export class RefreshDto {
@@ -62,4 +65,16 @@ export class LogoutDto {
 export class ForgotPasswordDto {
   @IsEmail()
   email!: string;
+}
+
+export class ChangeInitialPasswordDto {
+  @IsString()
+  newPassword!: string;
+}
+export class ChangePasswordDto {
+  @IsString()
+  currentPassword!: string;
+
+  @IsString()
+  newPassword!: string;
 }

@@ -25,5 +25,7 @@ export class AssignStaffDto {
 }
 
 export class LinkPatientDto {
+  @IsOptional()
+  @IsString()
   staffId?: string;
 }

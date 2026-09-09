@@ -1,11 +1,19 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PatientHospitalService } from 'src/patient-hospital/patient-hospital.service';
 import { UserRole } from 'src/user/dto/create-user.dto';
 import { UserService } from 'src/user/user.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { CreatePatientHospitalDto } from 'src/patient-hospital/dto/create-patient-hospital.dto';
 import { HospitalService } from 'src/hospital/hospital.service';
+import { SessionResultService } from 'src/session-result/session-result.service';
+import { AssignmentService } from 'src/assignment/assignment.service';
 import mongoose from 'mongoose';
+import { CreateSessionResultDto } from 'src/session-result/dto/create-session-result.dto';
+import { AssignmentStatus } from 'src/assignment/dto/create-assignment.dto';
 
 @Injectable()
 export class PatientService {
@@ -13,6 +21,8 @@ export class PatientService {
     private readonly userService: UserService,
     private readonly patientHospitalService: PatientHospitalService,
     private readonly hospitalService: HospitalService,
+    private readonly sessionResultService: SessionResultService,
+    private readonly assignmentService: AssignmentService,
   ) {}
 
   async create(createPatientDto: CreatePatientDto) {
@@ -57,6 +67,15 @@ export class PatientService {
     ]);
   }
 
+  getHospital(id: string, linkId: string) {
+    const patientId = new mongoose.Types.ObjectId(id);
+    const _id = new mongoose.Types.ObjectId(linkId);
+    return this.patientHospitalService.findOne({ _id, patientId }, [
+      'staffId',
+      'hospitalId',
+    ]);
+  }
+
   async sendHospitalRequest(patientId: string, hospitalId: string) {
     const hospitalExists = await this.hospitalService.existsById(hospitalId);
 
@@ -67,5 +86,45 @@ export class PatientService {
       hospitalId,
       patientId,
     });
+  }
+
+  async createSessionResult(dto: CreateSessionResultDto, patientId: string) {
+    const assignment = await this.assignmentService.findById(dto.assignmentId);
+    if (!assignment) throw new NotFoundException('Assignment not found');
+    if (assignment.patientId.toString() !== patientId) {
+      throw new ForbiddenException('Access denied');
+    }
+    return this.sessionResultService.create({ ...dto, patientId });
+  }
+
+  async getSessionResults(patientId: string) {
+    return this.sessionResultService.findByPatient(patientId);
+  }
+
+  async getSessionResultsByAssignment(assignmentId: string, patientId: string) {
+    const assignment = await this.assignmentService.findById(assignmentId);
+    if (!assignment) throw new NotFoundException('Assignment not found');
+    if (assignment.patientId.toString() !== patientId) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    return this.sessionResultService.findByAssignment(assignmentId);
+  }
+
+  async getAssignments(
+    patientId: string,
+    hospitalId?: string,
+    status?: AssignmentStatus,
+  ) {
+    return this.assignmentService.findByPatient(patientId, hospitalId, status);
+  }
+
+  async getAssignmentById(id: string, patientId: string) {
+    const assignment = await this.assignmentService.findById(id);
+    if (!assignment) throw new NotFoundException('Assignment not found');
+    if (assignment.patientId.toString() !== patientId) {
+      throw new ForbiddenException('Access denied');
+    }
+    return assignment;
   }
 }

@@ -7,6 +7,9 @@ import { CounterModule } from 'src/counter/counter.module';
 import { UserModule } from 'src/user/user.module';
 import { User, UserSchema } from 'src/user/user.schema';
 import { PatientHospitalModule } from 'src/patient-hospital/patient-hospital.module';
+import { MailModule } from 'src/mail/mail.module';
+import { AssignmentModule } from 'src/assignment/assignment.module';
+import { SessionResultModule } from 'src/session-result/session-result.module';
 
 @Module({
   imports: [
@@ -17,6 +20,9 @@ import { PatientHospitalModule } from 'src/patient-hospital/patient-hospital.mod
     UserModule,
     CounterModule,
     PatientHospitalModule,
+    MailModule,
+    AssignmentModule,
+    SessionResultModule,
   ],
   controllers: [HospitalController],
   providers: [HospitalService],

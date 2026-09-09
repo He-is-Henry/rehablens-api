@@ -11,6 +11,8 @@ import { JwtModule } from '@nestjs/jwt';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { PatientModule } from './patient/patient.module';
 import { StringValue } from 'ms';
+import { StaffModule } from './staff/staff.module';
+import { ExerciseModule } from './exercise/exercise.module';
 
 @Module({
   imports: [
@@ -41,7 +43,9 @@ import { StringValue } from 'ms';
     }),
     AuthModule,
     HospitalModule,
+    StaffModule,
     PatientModule,
+    ExerciseModule,
   ],
   controllers: [AppController],
   providers: [

@@ -56,11 +56,18 @@ export class PatientHospitalService {
     filter: Partial<PatientHospitalDocument>,
     populate: ('patientId' | 'staffId' | 'hospitalId')[],
   ) {
-    const fields = 'name email customId';
+    type PopulatePath = 'patientId' | 'staffId' | 'hospitalId';
+
+    const POPULATE_FIELDS: Record<PopulatePath, string> = {
+      patientId: 'name email customId',
+      staffId: 'name email customId',
+      hospitalId: 'name address email customId',
+    };
+
     return this.patientHospitalModel.find(filter).populate(
       populate.map((p) => ({
         path: p,
-        select: fields,
+        select: POPULATE_FIELDS[p],
       })),
     );
   }
@@ -69,11 +76,16 @@ export class PatientHospitalService {
     filter: Partial<PatientHospitalDocument>,
     populate: ('patientId' | 'staffId' | 'hospitalId')[],
   ) {
-    const fields = 'name email customId';
+    type PopulatePath = 'patientId' | 'staffId' | 'hospitalId';
+    const POPULATE_FIELDS: Record<PopulatePath, string> = {
+      patientId: 'name email customId',
+      staffId: 'name email customId',
+      hospitalId: 'name address email customId',
+    };
     return this.patientHospitalModel.findOne(filter).populate(
       populate.map((p) => ({
         path: p,
-        select: fields,
+        select: POPULATE_FIELDS[p],
       })),
     );
   }
@@ -95,12 +107,15 @@ export class PatientHospitalService {
       throw new ForbiddenException('Access Denied');
 
     current.verified = !current.verified;
-    return current.save();
+    await current.save();
+    return current.populate('staffId patientId');
   }
 
   assignStaff(linkId: string, staffId: string) {
-    return this.patientHospitalModel.findByIdAndUpdate(linkId, {
-      staffId: new mongoose.Types.ObjectId(staffId),
-    });
+    return this.patientHospitalModel
+      .findByIdAndUpdate(linkId, {
+        staffId: new mongoose.Types.ObjectId(staffId),
+      })
+      .populate('staffId patientId');
   }
 }

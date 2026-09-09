@@ -7,6 +7,7 @@ import mongoose, { Model } from 'mongoose';
 import { CounterService } from 'src/counter/counter.service';
 import { LoginDto } from 'src/auth/dto/create-auth.dto';
 import * as bcrypt from 'bcrypt';
+import { HospitalDocument } from 'src/hospital/hospital.schema';
 
 interface SearchFilter {
   role: UserRole;
@@ -21,6 +22,7 @@ export class UserService {
   ) {}
 
   async create(createUserDto: CreateUserInternalDto) {
+    createUserDto.email = createUserDto.email.toLowerCase().trim();
     const userAlreadyExists = await this.userModel.exists({
       email: createUserDto.email,
     });
@@ -34,11 +36,13 @@ export class UserService {
     const password = await bcrypt.hash(createUserDto.password, 10);
 
     const customId = `${keyword}-${paddedSequence}`;
-    return this.userModel.create({
+    const user = await this.userModel.create({
       ...createUserDto,
       password,
       customId,
     });
+
+    return user;
   }
 
   getRoleKeyword(role: UserRole) {
@@ -121,7 +125,12 @@ export class UserService {
   }
 
   async authenticate(loginDto: LoginDto) {
-    const user = await this.findByEmail(loginDto.email).populate('hospitalId');
+    const user = await this.findByEmail(loginDto.email.toLowerCase().trim())
+      .select('+password')
+      .populate<{
+        hospitalId: HospitalDocument;
+      }>('hospitalId');
+
     if (!user)
       return {
         error: true,
@@ -147,11 +156,9 @@ export class UserService {
   }
 
   update(id: string, updateUserDto: UpdateUserDto) {
-    return this.userModel
-      .findByIdAndUpdate(id, updateUserDto, {
-        returnDocument: 'after',
-      })
-      .select('-password');
+    return this.userModel.findByIdAndUpdate(id, updateUserDto, {
+      returnDocument: 'after',
+    });
   }
 
   remove(id: string) {
