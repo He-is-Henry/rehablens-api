@@ -155,7 +155,18 @@ export class UserService {
     };
   }
 
-  update(id: string, updateUserDto: UpdateUserDto) {
+  async update(id: string, updateUserDto: UpdateUserDto) {
+    if (updateUserDto.email) {
+      const emailAlreadyExists = await this.userModel.findOne({
+        email: updateUserDto.email,
+        _id: { $ne: id },
+      });
+
+      if (emailAlreadyExists) {
+        throw new ConflictException('Email address is already in use');
+      }
+    }
+
     return this.userModel.findByIdAndUpdate(id, updateUserDto, {
       returnDocument: 'after',
     });
