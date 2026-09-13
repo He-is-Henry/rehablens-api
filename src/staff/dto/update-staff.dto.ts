@@ -17,6 +17,10 @@ export class UpdateStaffDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isPioneer?: boolean;
 }
 
 export class AssignStaffDto {
