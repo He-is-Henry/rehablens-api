@@ -2,8 +2,6 @@ import { Body, Controller, Post } from '@nestjs/common';
 import { MailService } from './mail.service';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { UserRole } from 'src/user/dto/create-user.dto';
-// import { Roles } from 'src/common/decorators/roles.decorator';
-// import { UserRole } from 'src/user/dto/create-user.dto';
 
 @Controller('mail')
 export class MailController {

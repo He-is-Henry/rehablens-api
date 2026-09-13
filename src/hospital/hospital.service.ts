@@ -239,6 +239,17 @@ export class HospitalService {
     ]);
   }
 
+  getLinkedPatient(linkId: string, hospitalId: string) {
+    const _id = new mongoose.Types.ObjectId(linkId);
+    return this.patientHospitalService.find(
+      {
+        _id,
+        hospitalId: new mongoose.Types.ObjectId(hospitalId),
+      },
+      ['patientId', 'staffId'],
+    );
+  }
+
   toggleVerification(id: string, hospitalId: string) {
     return this.patientHospitalService.toggleVerification(id, hospitalId);
   }

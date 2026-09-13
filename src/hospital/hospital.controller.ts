@@ -144,6 +144,12 @@ export class HospitalController {
   }
 
   @Roles(UserRole.HOSPITAL_ADMIN)
+  @Get('patient/:linkId')
+  getLinkedPatientById(@Query('linkId') linkId: string, @Req() req: Request) {
+    return this.hospitalService.getLinkedPatient(linkId, req.user!.hospitalId!);
+  }
+
+  @Roles(UserRole.HOSPITAL_ADMIN)
   @Patch('patient/:id/verify')
   togglePatientVerification(@Param('id') id: string, @Req() req: Request) {
     return this.hospitalService.toggleVerification(id, req.user!.hospitalId!);
