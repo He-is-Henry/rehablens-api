@@ -67,15 +67,21 @@ export class AuthService {
 
     await session.save();
 
-    const sessions = await this.sessionService.getUserSessions(
-      user._id.toString(),
+    const userSessions = await this.sessionService
+      .getUserSessions(user._id.toString())
+      .lean();
+
+    const sessions = userSessions.map((s) =>
+      s._id.toString() === session._id.toString()
+        ? { ...s, currentDevice: true }
+        : s,
     );
 
     return {
       accessToken,
       refreshToken,
       user,
-      session,
+      sessions,
       sessionCount: sessions.length,
     };
   }
@@ -207,16 +213,15 @@ export class AuthService {
       session._id.toString(),
     );
 
-    const updatedSession = await this.sessionService.updateSession(
-      session._id,
-      { refreshToken },
-    );
+    await this.sessionService.updateSession(session._id, { refreshToken });
+
+    const sessions = await this.sessionService.getUserSessions(userId);
 
     return {
       message: 'Token refresh successful',
       accessToken,
       refreshToken,
-      session: updatedSession,
+      sessions,
     };
   }
 
