@@ -26,6 +26,7 @@ import { UserDocument } from 'src/user/user.schema';
 import { OtpDocument } from 'src/otp/otp.schema';
 import mongoose from 'mongoose';
 import { HospitalDocument } from 'src/hospital/hospital.schema';
+import { RecoverAccountDto } from 'src/user/dto/update-user.dto';
 
 @Injectable()
 export class AuthService {
@@ -42,6 +43,14 @@ export class AuthService {
     const authResult = await this.userService.authenticate(loginDto);
 
     if (authResult.error || !authResult.passwordCorect) {
+      if (authResult.isDeleted) {
+        throw new ForbiddenException({
+          statusCode: 403,
+          message: authResult.message,
+          error: 'AccountDeleted',
+          isRecoverable: authResult.isRecoverable,
+        });
+      }
       throw new UnauthorizedException(authResult.message);
     }
 
@@ -199,7 +208,10 @@ export class AuthService {
       .findById(userId)
       .populate<{ hospitalId: HospitalDocument }>('hospitalId');
 
-    if (!user) throw new UnauthorizedException("User doens't exist");
+    if (!user || user.isDeleted) {
+      throw new UnauthorizedException('Account is deleted');
+    }
+
     if (!user.isActive)
       throw new UnauthorizedException(
         'This account is inactive, contact your administrator',
@@ -435,5 +447,13 @@ export class AuthService {
     user.password = await bcrypt.hash(newPassword, 10);
     await user.save();
     await match.deleteOne();
+  }
+
+  deletePassword(id: string) {
+    return this.userService.delete(id);
+  }
+
+  recoverAccount(dto: RecoverAccountDto) {
+    return this.userService.recoverAccount(dto);
   }
 }

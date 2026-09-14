@@ -30,6 +30,12 @@ export class User {
 
   @Prop({ required: true, default: false })
   mustChangePassword!: boolean;
+
+  @Prop({ required: true, default: false })
+  isDeleted!: boolean;
+
+  @Prop()
+  deletedAt?: Date;
 }
 
 export type UserDocument = User & Document;

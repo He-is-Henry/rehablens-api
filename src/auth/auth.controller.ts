@@ -27,6 +27,7 @@ import {
 import { Public } from 'src/common/decorators/public.decorator';
 import type { Request, Response } from 'express';
 import { EditProfileDto } from './dto/update-auth.dto';
+import { RecoverAccountDto } from 'src/user/dto/update-user.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -117,5 +118,16 @@ export class AuthController {
     const appDeepLink = `rehablens://reset-password?token=${token}`;
 
     return res.redirect(302, appDeepLink);
+  }
+
+  @Delete('delete')
+  deleteAccount(@Req() req: Request) {
+    return this.authService.deletePassword(req.user!.id);
+  }
+
+  @Public()
+  @Post('recover')
+  recoverAccount(@Body() recoverAccountDto: RecoverAccountDto) {
+    return this.authService.recoverAccount(recoverAccountDto);
   }
 }

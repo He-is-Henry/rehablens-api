@@ -1,6 +1,12 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { CreateUserInternalDto, UserRole } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { RecoverAccountDto, UpdateUserDto } from './dto/update-user.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { User, UserDocument } from './user.schema';
 import mongoose, { Model } from 'mongoose';
@@ -147,6 +153,21 @@ export class UserService {
         error: true,
         message: 'Incorrect password',
       };
+
+    if (user.isDeleted) {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const isRecoverable = user.deletedAt && user.deletedAt >= sevenDaysAgo;
+
+      return {
+        error: true,
+        isDeleted: true,
+        isRecoverable,
+        message: isRecoverable
+          ? 'This account is scheduled for deletion. You can recover it.'
+          : 'This account has been permanently deleted.',
+      };
+    }
+
     const { password, ...safeUser } = user.toObject();
     return {
       error: false,
@@ -172,7 +193,41 @@ export class UserService {
     });
   }
 
-  remove(id: string) {
-    return this.userModel.findByIdAndDelete(id);
+  delete(id: string) {
+    return this.userModel.findByIdAndUpdate(id, {
+      isDeleted: true,
+      deletedAt: new Date(),
+    });
+  }
+
+  async recoverAccount({ email, password }: RecoverAccountDto) {
+    const user = await this.userModel
+      .findOne({
+        email: email.toLowerCase().trim(),
+        isDeleted: true,
+      })
+      .select('+password');
+
+    if (!user) {
+      throw new NotFoundException('No deleted account found for this email');
+    }
+
+    const passwordCorrect = await bcrypt.compare(password, user.password);
+    if (!passwordCorrect) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    if (!user.deletedAt || user.deletedAt < sevenDaysAgo) {
+      throw new BadRequestException(
+        'The 7-day recovery period for this account has expired',
+      );
+    }
+
+    user.isDeleted = false;
+    user.deletedAt = undefined;
+    await user.save();
+
+    return { message: 'Account recovered successfully' };
   }
 }
