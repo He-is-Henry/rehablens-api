@@ -129,7 +129,7 @@ export class AuthController {
   @Post('recover')
   async recoverAccount(
     @Body() dto: RecoverAccountDto,
-    clientData: ISchemaClientData,
+    @ClientData() clientData: ISchemaClientData,
   ) {
     await this.authService.recoverAccount(dto);
 
