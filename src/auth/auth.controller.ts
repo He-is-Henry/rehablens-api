@@ -122,17 +122,15 @@ export class AuthController {
 
   @Delete('delete')
   deleteAccount(@Req() req: Request) {
-    return this.authService.deletePassword(req.user!.id);
+    return this.authService.deleteAccount(req.user!.id);
   }
 
   @Public()
   @Post('recover')
-  async recoverAccount(
+  recoverAccount(
     @Body() dto: RecoverAccountDto,
     @ClientData() clientData: ISchemaClientData,
   ) {
-    await this.authService.recoverAccount(dto);
-
-    return this.login({ email: dto.email, password: dto.password }, clientData);
+    return this.authService.recoverAccount(dto, clientData);
   }
 }

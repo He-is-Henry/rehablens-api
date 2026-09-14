@@ -449,11 +449,12 @@ export class AuthService {
     await match.deleteOne();
   }
 
-  deletePassword(id: string) {
+  deleteAccount(id: string) {
     return this.userService.delete(id);
   }
 
-  recoverAccount(dto: RecoverAccountDto) {
-    return this.userService.recoverAccount(dto);
+  async recoverAccount(dto: RecoverAccountDto, clientData: ISchemaClientData) {
+    await this.userService.recoverAccount(dto);
+    return this.login({ email: dto.email, password: dto.password }, clientData);
   }
 }
