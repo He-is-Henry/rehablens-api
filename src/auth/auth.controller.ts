@@ -127,7 +127,9 @@ export class AuthController {
 
   @Public()
   @Post('recover')
-  recoverAccount(@Body() recoverAccountDto: RecoverAccountDto) {
-    return this.authService.recoverAccount(recoverAccountDto);
+  async recoverAccount(dto: RecoverAccountDto, clientData: ISchemaClientData) {
+    await this.authService.recoverAccount(dto);
+
+    return this.login({ email: dto.email, password: dto.password }, clientData);
   }
 }
