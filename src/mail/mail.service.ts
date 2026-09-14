@@ -29,7 +29,7 @@ export class MailService {
 
       // Construct clean standard MIME headers + message body string
       const messageParts = [
-        `From: "Rehab Lens" <${fromEmail}>`,
+        `From: "RehabLens" <${fromEmail}>`,
         `To: ${to}`,
         'Content-Type: text/html; charset=utf-8',
         'MIME-Version: 1.0',
