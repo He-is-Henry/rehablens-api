@@ -197,7 +197,7 @@ export class AuthService {
     return decoded;
   }
 
-  async refresh(token: string) {
+  async refresh(token: string, clientData: ISchemaClientData) {
     const decoded = await this.verifyRefreshToken(token);
 
     if (!decoded) throw new UnauthorizedException('Invalid token');
@@ -225,7 +225,10 @@ export class AuthService {
       session._id.toString(),
     );
 
-    await this.sessionService.updateSession(session._id, { refreshToken });
+    await this.sessionService.updateSession(session._id, {
+      refreshToken,
+      ...clientData,
+    });
 
     const sessions = await this.sessionService.getUserSessions(userId);
 

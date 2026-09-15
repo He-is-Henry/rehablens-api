@@ -54,8 +54,11 @@ export class AuthController {
 
   @Public()
   @Post('refresh')
-  refresh(@Body() refreshDto: RefreshDto) {
-    return this.authService.refresh(refreshDto.refreshToken);
+  refresh(
+    @Body() refreshDto: RefreshDto,
+    @ClientData() clientData: ISchemaClientData,
+  ) {
+    return this.authService.refresh(refreshDto.refreshToken, clientData);
   }
 
   @Public()
