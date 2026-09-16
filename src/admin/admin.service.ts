@@ -21,10 +21,11 @@ export class AdminService {
       password,
       role: UserRole.ADMIN,
     });
+
     await this.mailService.sendEmail(
       user.email,
       'Welcome to Rehablens admin dashboard',
-      this.buildWelcomeMail(user),
+      this.buildWelcomeMail({ ...user, password }),
     );
   }
 
