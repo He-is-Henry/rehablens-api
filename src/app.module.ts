@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -13,6 +13,9 @@ import { PatientModule } from './patient/patient.module';
 import { StringValue } from 'ms';
 import { StaffModule } from './staff/staff.module';
 import { ExerciseModule } from './exercise/exercise.module';
+import { RequestLoggerMiddleware } from './request-log/request-logger.middleware';
+import { AdminModule } from './admin/admin.module';
+import { RequestLogModule } from './request-log/request-log.module';
 
 @Module({
   imports: [
@@ -46,9 +49,12 @@ import { ExerciseModule } from './exercise/exercise.module';
     StaffModule,
     PatientModule,
     ExerciseModule,
+    AdminModule,
+    RequestLogModule,
   ],
   controllers: [AppController],
   providers: [
+    RequestLoggerMiddleware,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
@@ -60,4 +66,8 @@ import { ExerciseModule } from './exercise/exercise.module';
     AppService,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestLoggerMiddleware).forRoutes('*');
+  }
+}

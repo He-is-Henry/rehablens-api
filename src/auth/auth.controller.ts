@@ -122,6 +122,13 @@ export class AuthController {
 
     return res.redirect(302, appDeepLink);
   }
+  @Public()
+  @Get('login-redirect')
+  handleLogin(@Res() res: Response) {
+    const appDeepLink = `rehablens://login`;
+
+    return res.redirect(302, appDeepLink);
+  }
 
   @Delete('delete')
   deleteAccount(@Req() req: Request) {

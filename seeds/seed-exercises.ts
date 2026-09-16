@@ -2,7 +2,7 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 import mongoose from 'mongoose';
-import { ExerciseSchema } from './exercise.schema';
+import { ExerciseSchema } from '../src/exercise/exercise.schema';
 
 const EXERCISES = [
   {

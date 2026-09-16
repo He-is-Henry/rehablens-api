@@ -146,7 +146,7 @@ export class HospitalService {
 
     await this.mailService.sendEmail(
       createStaffDto.email,
-      'Welcome to Reehab lens',
+      'Welcome to Reehablens',
       this.buildWelcomeMail(createStaffDto.name, password, hospital),
     );
 
