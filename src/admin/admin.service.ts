@@ -25,12 +25,13 @@ export class AdminService {
     await this.mailService.sendEmail(
       user.email,
       'Welcome to Rehablens admin dashboard',
-      this.buildWelcomeMail({ ...user.toObject(), password }),
+      this.buildWelcomeMail(user, password),
     );
   }
 
   buildWelcomeMail(
     user: User,
+    password: string,
     loginUrl = 'https://rehablens.onrender.com/auth/login-redirect',
   ) {
     return `
@@ -72,7 +73,7 @@ export class AdminService {
                   
                   <!-- Isolated Copyable Box -->
                   <div style="background: #EBF1F0; border: 1px solid #D1E0DD; border-radius: 6px; padding: 12px; margin-bottom: 16px; text-align: center;">
-                    <span style="font-size: 18px; font-family: 'Courier New', Courier, monospace; font-weight: 700; color: #1E3F3A; letter-spacing: 1px; user-select: all; -webkit-user-select: all;">${user.password}</span>
+                    <span style="font-size: 18px; font-family: 'Courier New', Courier, monospace; font-weight: 700; color: #1E3F3A; letter-spacing: 1px; user-select: all; -webkit-user-select: all;">${password}</span>
                   </div>
 
                   <p style="margin: 0; font-size: 12px; color: #788885; line-height: 1.5; font-style: italic;">
