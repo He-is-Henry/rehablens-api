@@ -27,6 +27,8 @@ import { OtpDocument } from 'src/otp/otp.schema';
 import mongoose from 'mongoose';
 import { HospitalDocument } from 'src/hospital/hospital.schema';
 import { RecoverAccountDto } from 'src/user/dto/update-user.dto';
+import { AuditService } from 'src/audit/audit.service';
+import { AuditAction } from 'src/audit/audit-action.enum';
 
 @Injectable()
 export class AuthService {
@@ -37,12 +39,26 @@ export class AuthService {
     private readonly sessionService: SessionService,
     private readonly otpService: OtpService,
     private readonly mailService: MailService,
+    private readonly auditService: AuditService,
   ) {}
 
   async login(loginDto: LoginDto, clientData: ISchemaClientData) {
     const authResult = await this.userService.authenticate(loginDto);
+    const user = authResult.user;
 
-    if (authResult.error || !authResult.passwordCorect) {
+    if (!user) throw new UnauthorizedException(authResult.message);
+
+    const userId = user._id.toString();
+    const { name, role, customId } = user;
+
+    if (authResult.error) {
+      this.auditService.record({
+        ...clientData,
+        action: AuditAction.LOGIN,
+        actor: { userId, name, role, customId },
+        outcome: 'failure',
+      });
+
       if (authResult.isDeleted) {
         throw new ForbiddenException({
           statusCode: 403,
@@ -53,8 +69,6 @@ export class AuthService {
       }
       throw new UnauthorizedException(authResult.message);
     }
-
-    const user = authResult.user;
 
     if (!user.isActive)
       throw new UnauthorizedException(
@@ -86,6 +100,13 @@ export class AuthService {
         : s,
     );
 
+    this.auditService.record({
+      ...clientData,
+      action: AuditAction.LOGIN,
+      actor: { userId, name, role, customId },
+      outcome: 'success',
+    });
+
     return {
       accessToken,
       refreshToken,
@@ -95,7 +116,11 @@ export class AuthService {
     };
   }
 
-  async changeInitialPassword(id: string, newPassword: string) {
+  async changeInitialPassword(
+    id: string,
+    newPassword: string,
+    clientData: ISchemaClientData,
+  ) {
     const filter: Partial<UserDocument> = {
       _id: new mongoose.Types.ObjectId(id),
       mustChangePassword: true,
@@ -109,6 +134,16 @@ export class AuthService {
 
     if (!user) throw new NotFoundException('User profile not found');
 
+    const userId = user?._id.toString();
+    const { name, role, customId } = user;
+
+    this.auditService.record({
+      ...clientData,
+      actor: { userId, name, role, customId },
+      action: AuditAction.PASSWORD_RESET,
+      outcome: 'success',
+    });
+
     return {
       message: 'Password reset successfully',
       user,
@@ -119,18 +154,30 @@ export class AuthService {
     id: string,
     currentPassword: string,
     newPassword: string,
+    clientData: ISchemaClientData,
   ) {
     const user = await this.userService.findById(id).select('+password');
 
     if (!user) throw new NotFoundException('User profile not found');
+
+    const userId = user?._id.toString();
+    const { name, role, customId } = user;
 
     const passwordCorrect = await bcrypt.compare(
       currentPassword,
       user.password,
     );
 
-    if (!passwordCorrect)
+    if (!passwordCorrect) {
+      this.auditService.record({
+        ...clientData,
+        actor: { userId, name, role, customId },
+        action: AuditAction.PASSWORD_RESET,
+        outcome: 'failure',
+      });
+
       throw new ForbiddenException('Incorrect current password, try again');
+    }
 
     const filter = {
       _id: new mongoose.Types.ObjectId(id),
@@ -140,7 +187,12 @@ export class AuthService {
     };
 
     await this.userService.findOneAndUpdate(filter, update);
-
+    this.auditService.record({
+      ...clientData,
+      actor: { userId, name, role, customId },
+      action: AuditAction.PASSWORD_RESET,
+      outcome: 'success',
+    });
     return {
       message: 'Password reset successfully',
     };

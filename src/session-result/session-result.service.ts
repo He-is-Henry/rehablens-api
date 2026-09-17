@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { SessionResult } from './session-result.schema';
+import { Model, QueryFilter } from 'mongoose';
+import { SessionResult, SessionResultDocument } from './session-result.schema';
 import { CreateSessionResultDto } from './dto/create-session-result.dto';
 
 @Injectable()
@@ -32,5 +32,22 @@ export class SessionResultService {
         path: 'assignmentId',
         populate: { path: 'exerciseId' },
       });
+  }
+
+  count(filter: QueryFilter<SessionResultDocument>) {
+    return this.sessionResultModel.countDocuments(filter);
+  }
+
+  countByDay(since: Date) {
+    return this.sessionResultModel.aggregate([
+      { $match: { createdAt: { $gte: since } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
   }
 }

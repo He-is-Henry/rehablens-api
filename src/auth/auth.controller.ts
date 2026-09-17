@@ -84,10 +84,12 @@ export class AuthController {
   changeInitialPassword(
     @Req() req: Request,
     @Body() changeInitialPasswordDto: ChangeInitialPasswordDto,
+    @ClientData() clientData: ISchemaClientData,
   ) {
     return this.authService.changeInitialPassword(
       req.user!.id,
       changeInitialPasswordDto.newPassword,
+      clientData,
     );
   }
 
@@ -95,11 +97,13 @@ export class AuthController {
   changePassword(
     @Req() req: Request,
     @Body() changePasswordDto: ChangePasswordDto,
+    @ClientData() clientData: ISchemaClientData,
   ) {
     return this.authService.changePassword(
       req.user!.id,
       changePasswordDto.currentPassword,
       changePasswordDto.newPassword,
+      clientData,
     );
   }
 

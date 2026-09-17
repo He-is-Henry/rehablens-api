@@ -5,12 +5,21 @@ import * as crypto from 'crypto';
 import { UserRole } from 'src/user/dto/create-user.dto';
 import { User } from 'src/user/user.schema';
 import { MailService } from 'src/mail/mail.service';
+import { AuditService } from 'src/audit/audit.service';
+import { SessionResultService } from 'src/session-result/session-result.service';
+import { RequestLogService } from 'src/request-log/request-log.service';
+import { QueryFilter } from 'mongoose';
+import { RequestLog } from 'src/request-log/request-log.schema';
+import { RequestLogQueryDto } from 'src/request-log/dto/query.dto';
 
 @Injectable()
 export class AdminService {
   constructor(
     private readonly userService: UserService,
     private readonly mailService: MailService,
+    private readonly auditService: AuditService,
+    private readonly sessionResultService: SessionResultService,
+    private readonly requestLogService: RequestLogService,
   ) {}
 
   async createAdmin(createAdminDto: CreateAdminDto) {
@@ -111,5 +120,123 @@ export class AdminService {
   </body>
 </html>
 `;
+  }
+
+  findAll() {
+    return this.userService.findAll({ role: UserRole.ADMIN });
+  }
+
+  async getStats() {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const [
+      hospitals,
+      staff,
+      patients,
+      sessionsTotal,
+      registeredToday,
+      sessionsToday,
+    ] = await Promise.all([
+      this.userService.count({ role: UserRole.HOSPITAL_ADMIN }),
+      this.userService.count({ role: UserRole.STAFF }),
+      this.userService.count({ role: UserRole.PATIENT }),
+      this.sessionResultService.count({}),
+      this.userService.count({ createdAt: { $gte: startOfToday } }),
+      this.sessionResultService.count({ completedAt: { $gte: startOfToday } }),
+    ]);
+
+    return {
+      totalHospitals: hospitals,
+      totalStaff: staff,
+      totalPatients: patients,
+      totalSessions: sessionsTotal,
+      registeredToday,
+      sessionsToday,
+    };
+  }
+
+  async getTimeseries(
+    metric: 'registrations' | 'sessions' | 'errors',
+    days: number,
+  ) {
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+    since.setHours(0, 0, 0, 0);
+
+    if (metric === 'registrations') {
+      return this.userService.countByDay(since);
+    }
+    if (metric === 'sessions') {
+      return this.sessionResultService.countByDay(since);
+    }
+    return this.requestLogService.countErrorsByDay(since);
+  }
+
+  async getRequestLogs(
+    filter: Omit<RequestLogQueryDto, 'limit' | 'cursor'>,
+    limit: number,
+    cursor?: string,
+  ) {
+    const query: QueryFilter<RequestLog> & Record<string, any> = {};
+    if (filter.status) query.status = filter.status;
+    if (filter.url) query.url = filter.url;
+    if (filter.userId) query.userId = filter.userId;
+    if (filter.from || filter.to) {
+      query.createdAt = {
+        ...(filter.from && { $gte: new Date(filter.from) }),
+        ...(filter.to && { $lte: new Date(filter.to) }),
+      };
+    }
+    return this.requestLogService.find(query, limit, cursor);
+  }
+
+  async getRequestStats() {
+    const [stats] = await this.requestLogService.getStats();
+    const slowest = await this.requestLogService.getSlowestEndpoints();
+    const errorProne = await this.requestLogService.getErrorRateByEndpoint();
+
+    return {
+      totalRequests: stats?.totalRequests ?? 0,
+      avgDuration: Math.round(stats?.avgDuration ?? 0),
+      errorCount: stats?.errorCount ?? 0,
+      slowestEndpoints: slowest,
+      errorProneEndpoints: errorProne,
+    };
+  }
+
+  async getAuditLogs(
+    filter: {
+      action?: string;
+      userId?: string;
+      from?: string;
+      to?: string;
+    },
+    limit: number,
+    cursor?: string,
+  ) {
+    const query: Record<string, any> = {};
+    if (filter.action) query.action = filter.action;
+    if (filter.userId) {
+      query.$or = [
+        { 'actor.userId': filter.userId },
+        { 'affected.userId': filter.userId },
+      ];
+    }
+    if (filter.from || filter.to) {
+      query.createdAt = {
+        ...(filter.from && { $gte: new Date(filter.from) }),
+        ...(filter.to && { $lte: new Date(filter.to) }),
+      };
+    }
+    return this.auditService.find(query, limit, cursor);
+  }
+
+  async searchUsers(query: string) {
+    return this.userService.search(query);
+  }
+
+  async sendTestMail(to: string, subject: string, body: string) {
+    return this.mailService.sendEmail(to, subject, body);
   }
 }

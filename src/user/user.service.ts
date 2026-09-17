@@ -9,14 +9,14 @@ import { CreateUserInternalDto, UserRole } from './dto/create-user.dto';
 import { RecoverAccountDto, UpdateUserDto } from './dto/update-user.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { User, UserDocument } from './user.schema';
-import mongoose, { Model } from 'mongoose';
+import mongoose, { Model, QueryFilter } from 'mongoose';
 import { CounterService } from 'src/counter/counter.service';
 import { LoginDto } from 'src/auth/dto/create-auth.dto';
 import * as bcrypt from 'bcrypt';
 import { HospitalDocument } from 'src/hospital/hospital.schema';
 
 interface SearchFilter {
-  role: UserRole;
+  role?: UserRole;
   hospitalId?: string;
 }
 
@@ -78,17 +78,16 @@ export class UserService {
     return keyword;
   }
 
-  findAll(filter?: { hospitalId: string }) {
+  findAll(filter: QueryFilter<UserDocument>) {
     return this.userModel.find(filter).select('-password');
   }
 
-  search(query: string, role: UserRole, hospitalId?: string) {
+  search(query: string, role?: UserRole, hospitalId?: string) {
     const regex = new RegExp(query, 'i');
 
-    const filter: SearchFilter = {
-      role,
-    };
+    const filter: SearchFilter = {};
 
+    if (role) filter.role = role;
     if (hospitalId) filter.hospitalId = hospitalId;
 
     return this.userModel
@@ -98,6 +97,23 @@ export class UserService {
       })
       .select('name customId email')
       .limit(10);
+  }
+
+  count(filter: QueryFilter<UserDocument>) {
+    return this.userModel.countDocuments(filter);
+  }
+
+  countByDay(since: Date) {
+    return this.userModel.aggregate([
+      { $match: { createdAt: { $gte: since } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
   }
 
   findOne(filter: Partial<UserDocument>) {
@@ -143,6 +159,8 @@ export class UserService {
         message: "Email doesn't exist",
       };
 
+    const { password, ...safeUser } = user.toObject();
+
     const passwordCorect = await bcrypt.compare(
       loginDto.password,
       user.password,
@@ -152,6 +170,7 @@ export class UserService {
       return {
         error: true,
         message: 'Incorrect password',
+        user: safeUser,
       };
 
     if (user.isDeleted) {
@@ -159,6 +178,7 @@ export class UserService {
       const isRecoverable = user.deletedAt && user.deletedAt >= sevenDaysAgo;
 
       return {
+        user: safeUser,
         error: true,
         isDeleted: true,
         isRecoverable,
@@ -168,7 +188,6 @@ export class UserService {
       };
     }
 
-    const { password, ...safeUser } = user.toObject();
     return {
       error: false,
       passwordCorect,

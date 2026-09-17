@@ -1,8 +1,11 @@
 export enum AuditAction {
+  LOGIN = 'signed in',
   PASSWORD_RESET = 'reset the password of',
   ACCOUNT_CREATED = 'created an account for',
   ACCOUNT_DELETED = 'deleted the account of',
   ACCOUNT_RESTORED = 'restored the account of',
+  ADMIN_CREATED = 'created an admin account for',
+  SESSION_REVOKED = 'ended a session for',
   PATIENT_LINKED = 'linked',
   PATIENT_VERIFIED = 'verified',
   PATIENT_UNVERIFIED = 'removed verification for',
@@ -15,5 +18,4 @@ export enum AuditAction {
   SESSION_COMPLETED = 'completed a session for',
   EXERCISE_CREATED = 'created the exercise',
   IMPERSONATION = 'impersonated',
-  LOGIN = 'signed in',
 }
