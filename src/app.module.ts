@@ -16,6 +16,7 @@ import { ExerciseModule } from './exercise/exercise.module';
 import { RequestLoggerMiddleware } from './request-log/request-logger.middleware';
 import { AdminModule } from './admin/admin.module';
 import { RequestLogModule } from './request-log/request-log.module';
+import { AuditModule } from './audit/audit.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { RequestLogModule } from './request-log/request-log.module';
     ExerciseModule,
     AdminModule,
     RequestLogModule,
+    AuditModule,
   ],
   controllers: [AppController],
   providers: [

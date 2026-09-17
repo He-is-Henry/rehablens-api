@@ -11,7 +11,12 @@ export class RequestLogService {
   ) {}
 
   record(data: Partial<RequestLog>) {
-    this.requestLogModel.create(data).catch(() => {});
+    this.requestLogModel.create(data).catch((err: Error) => {
+      console.error(
+        '[RequestLogger] Background save failed:',
+        err?.message || err,
+      );
+    });
   }
 
   find(filter: Partial<RequestLog>, limit = 50, cursor?: string) {
