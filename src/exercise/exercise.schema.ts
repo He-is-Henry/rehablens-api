@@ -60,6 +60,20 @@ export class RepStateInstructions {
   returning!: string;
 }
 
+@Schema({ _id: false })
+export class ExerciseMedia {
+  @Prop({ required: true })
+  url!: string;
+
+  @Prop()
+  caption?: string;
+
+  @Prop({ enum: ['image', 'video'], default: 'image' })
+  type!: 'image' | 'video';
+}
+
+export const ExerciseMediaSchema = SchemaFactory.createForClass(ExerciseMedia);
+
 export const RepStateInstructionsSchema =
   SchemaFactory.createForClass(RepStateInstructions);
 
@@ -100,6 +114,9 @@ export class Exercise {
 
   @Prop({ default: false })
   isDeleted!: boolean;
+
+  @Prop({ type: [ExerciseMediaSchema], default: [] })
+  media!: ExerciseMedia[];
 }
 
 export type ExerciseDocument = Exercise & Document;

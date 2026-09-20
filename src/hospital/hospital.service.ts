@@ -481,9 +481,7 @@ export class HospitalService {
       .findById(dto.patientId)
       .select('name role customId');
 
-    const exercise = await this.exerciseService
-      .findById(dto.exerciseId)
-      .select('name');
+    const exercise = await this.exerciseService.findById(dto.exerciseId);
 
     if (!hospitalAdmin)
       throw new ForbiddenException('Your account has been deleted!');
