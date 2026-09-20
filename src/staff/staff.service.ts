@@ -6,9 +6,12 @@ import {
 import mongoose from 'mongoose';
 import { AssignmentService } from 'src/assignment/assignment.service';
 import { CreateAssignmentDto } from 'src/assignment/dto/create-assignment.dto';
+import { UpdateAssignmentDto } from 'src/assignment/dto/update-assignment.dto';
 import { PatientHospitalService } from 'src/patient-hospital/patient-hospital.service';
 import { SessionResultService } from 'src/session-result/session-result.service';
 import { UserService } from 'src/user/user.service';
+import { AuditService } from 'src/audit/audit.service';
+import { AuditAction } from 'src/audit/audit-action.enum';
 
 @Injectable()
 export class StaffService {
@@ -17,6 +20,7 @@ export class StaffService {
     private readonly userService: UserService,
     private readonly assignmentService: AssignmentService,
     private readonly sessionResultService: SessionResultService,
+    private readonly auditService: AuditService,
   ) {}
 
   getPatients(staffId: string, hospitalId: string) {
@@ -65,7 +69,6 @@ export class StaffService {
       },
       [],
     );
-    console.log({ patientId, link });
 
     if (!link) throw new ForbiddenException('Access denied');
 
@@ -84,6 +87,8 @@ export class StaffService {
       ['patientId'],
     );
     if (!link) throw new ForbiddenException('Access denied');
+
+    if (!link.verified) throw new ForbiddenException('Verify patient firs');
 
     return this.sessionResultService
       .findByAssignment(assignmentId)
@@ -108,10 +113,109 @@ export class StaffService {
 
     if (!link) throw new ForbiddenException('Access denied');
 
-    return this.assignmentService.create({
+    const staff = await this.userService
+      .findById(assignedBy)
+      .select('name role customId');
+
+    if (!staff) throw new ForbiddenException('Account deleted');
+
+    const patient = await this.userService
+      .findById(dto.patientId)
+      .select('name role customId');
+
+    if (!patient) throw new NotFoundException('Patient not found');
+
+    const assignment = await this.assignmentService.create({
       ...dto,
       hospitalId,
       assignedBy,
     });
+
+    const actor = {
+      userId: staff._id.toString(),
+      name: staff.name,
+      role: staff.role,
+      customId: staff.customId,
+    };
+
+    const affected = [
+      {
+        userId: patient._id.toString(),
+        name: patient.name,
+        role: patient.role,
+        customId: patient.customId,
+      },
+    ];
+
+    this.auditService.record({
+      action: AuditAction.ASSIGNMENT_CREATED,
+      actor,
+      affected,
+    });
+
+    return assignment;
+  }
+
+  async updateAssignmentById(
+    id: string,
+    staffId: string,
+    dto: UpdateAssignmentDto | { isDeleted: true },
+  ) {
+    const assignment = await this.getAssignmentById(id, staffId);
+
+    const staff = await this.userService
+      .findById(staffId)
+      .select('name role customId');
+
+    if (!staff) throw new ForbiddenException('Account deleted');
+
+    const patient = await this.userService
+      .findById(assignment.patientId.toString())
+      .select('name role customId');
+
+    if (!patient) throw new NotFoundException('Patient not found');
+
+    Object.assign(assignment, dto);
+    const updatedAssignment = await assignment.save();
+
+    const actor = {
+      userId: staff._id.toString(),
+      name: staff.name,
+      role: staff.role,
+      customId: staff.customId,
+    };
+
+    const affected = [
+      {
+        userId: patient._id.toString(),
+        name: patient.name,
+        role: patient.role,
+        customId: patient.customId,
+      },
+    ];
+
+    const isDelete = 'isDeleted' in dto && dto.isDeleted;
+
+    this.auditService.record({
+      action: isDelete
+        ? AuditAction.ACCOUNT_DELETED
+        : AuditAction.ASSIGNMENT_UPDATED,
+      actor,
+      affected,
+    });
+
+    return updatedAssignment;
+  }
+
+  async updateAssignment(
+    id: string,
+    staffId: string,
+    dto: UpdateAssignmentDto,
+  ) {
+    return this.updateAssignmentById(id, staffId, dto);
+  }
+
+  async deleteAssignment(id: string, staffId: string) {
+    return this.updateAssignmentById(id, staffId, { isDeleted: true });
   }
 }

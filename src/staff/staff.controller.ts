@@ -1,9 +1,19 @@
-import { Body, Controller, Get, Param, Post, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Delete,
+  Patch,
+  Post,
+  Req,
+} from '@nestjs/common';
 import { StaffService } from './staff.service';
 import type { Request } from 'express';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { UserRole } from 'src/user/dto/create-user.dto';
 import { CreateAssignmentDto } from 'src/assignment/dto/create-assignment.dto';
+import { UpdateAssignmentDto } from 'src/assignment/dto/update-assignment.dto';
 
 @Controller('staff')
 export class StaffController {
@@ -43,6 +53,26 @@ export class StaffController {
   @Get('assignments/:id')
   getAssignment(@Param('id') id: string, @Req() req: Request) {
     return this.staffService.getAssignmentById(id, req.user!.id);
+  }
+
+  @Roles(UserRole.STAFF)
+  @Patch('assignments/:id')
+  updateAssignment(
+    @Param('id') id: string,
+    @Body() updateAssignmentDto: UpdateAssignmentDto,
+    @Req() req: Request,
+  ) {
+    return this.staffService.updateAssignment(
+      id,
+      req.user!.id,
+      updateAssignmentDto,
+    );
+  }
+
+  @Roles(UserRole.STAFF)
+  @Delete('assignment/:id')
+  deleteAssignment(@Param('id') id: string, @Req() req: Request) {
+    return this.staffService.deleteAssignment(id, req.user!.id);
   }
 
   @Roles(UserRole.STAFF)

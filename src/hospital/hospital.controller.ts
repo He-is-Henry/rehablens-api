@@ -7,6 +7,7 @@ import {
   Patch,
   Param,
   Query,
+  Delete,
 } from '@nestjs/common';
 import { HospitalService } from './hospital.service';
 import { CreateHospitalDto } from './dto/create-hospital.dto';
@@ -22,16 +23,12 @@ import {
   UpdateStaffDto,
   LinkPatientDto,
 } from 'src/staff/dto/update-staff.dto';
-import { UserService } from 'src/user/user.service';
 import { UpdateAssignmentDto } from 'src/assignment/dto/update-assignment.dto';
 import { CreateAssignmentDto } from 'src/assignment/dto/create-assignment.dto';
 
 @Controller('hospital')
 export class HospitalController {
-  constructor(
-    private readonly hospitalService: HospitalService,
-    private readonly userService: UserService,
-  ) {}
+  constructor(private readonly hospitalService: HospitalService) {}
 
   //register
   @Public()
@@ -67,10 +64,7 @@ export class HospitalController {
     @Body() createStaffDto: CreateStaffDto,
     @Req() req: Request,
   ) {
-    return this.hospitalService.createStaff(
-      req.user?.hospitalId,
-      createStaffDto,
-    );
+    return this.hospitalService.createStaff(req.user!, createStaffDto);
   }
 
   @Roles(UserRole.HOSPITAL_ADMIN)
@@ -111,7 +105,7 @@ export class HospitalController {
   @Roles(UserRole.HOSPITAL_ADMIN)
   @Get('staff/search')
   searchStaff(@Query('q') query: string, @Req() req: Request) {
-    return this.userService.search(query, UserRole.STAFF, req.user!.hospitalId);
+    return this.hospitalService.searchStaff(query, req.user!.hospitalId!);
   }
 
   // patients
@@ -124,7 +118,7 @@ export class HospitalController {
   ) {
     return this.hospitalService.linkPatient(
       patientId,
-      req.user!.hospitalId!,
+      req.user!,
       linkPatientDto.staffId,
     );
   }
@@ -145,14 +139,14 @@ export class HospitalController {
 
   @Roles(UserRole.HOSPITAL_ADMIN)
   @Get('patient/:linkId')
-  getLinkedPatientById(@Query('linkId') linkId: string, @Req() req: Request) {
+  getLinkedPatientById(@Param('linkId') linkId: string, @Req() req: Request) {
     return this.hospitalService.getLinkedPatient(linkId, req.user!.hospitalId!);
   }
 
   @Roles(UserRole.HOSPITAL_ADMIN)
   @Patch('patient/:id/verify')
   togglePatientVerification(@Param('id') id: string, @Req() req: Request) {
-    return this.hospitalService.toggleVerification(id, req.user!.hospitalId!);
+    return this.hospitalService.toggleVerification(id, req.user!);
   }
 
   @Roles(UserRole.HOSPITAL_ADMIN)
@@ -165,7 +159,7 @@ export class HospitalController {
     return this.hospitalService.assignStaff(
       linkId,
       assignStaffDto.staffId,
-      req.user!.hospitalId!,
+      req.user!,
     );
   }
 
@@ -207,11 +201,13 @@ export class HospitalController {
     @Body() dto: UpdateAssignmentDto,
     @Req() req: Request,
   ) {
-    return this.hospitalService.updateAssignment(
-      id,
-      req.user!.hospitalId!,
-      dto,
-    );
+    return this.hospitalService.updateAssignment(id, req.user!, dto);
+  }
+
+  @Roles(UserRole.HOSPITAL_ADMIN)
+  @Delete('assignment/:id')
+  deleteAssignment(@Param('id') id: string, @Req() req: Request) {
+    return this.hospitalService.deleteAssignment(id, req.user!);
   }
 
   @Roles(UserRole.HOSPITAL_ADMIN)

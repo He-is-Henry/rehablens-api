@@ -5,17 +5,22 @@ import { Session } from './session.schema';
 import mongoose, { Model } from 'mongoose';
 import { CreateSessionDto } from './dto/create-session-dto';
 import { UpdateSessionDto } from './dto/update-session-dto';
+import { ClsService } from 'nestjs-cls';
+import { ISchemaClientData } from 'src/auth/decorators/client-info.decorator';
 
 @Injectable()
 export class SessionService {
   constructor(
     @InjectModel(Session.name) private sessionModel: Model<Session>,
+    private readonly cls: ClsService,
   ) {}
+
   hashToken(token: string) {
     return crypto.createHash('sha256').update(token).digest('hex');
   }
 
   async init(createSessionDto: CreateSessionDto) {
+    const clientData: ISchemaClientData = this.cls.get('clientData');
     const filter = { userId: createSessionDto.userId };
 
     const extraSessions = await this.sessionModel
@@ -29,7 +34,7 @@ export class SessionService {
       const idsToDelete = extraSessions.map((s) => s._id);
       await this.sessionModel.deleteMany({ _id: { $in: idsToDelete } });
     }
-    return new this.sessionModel(createSessionDto);
+    return new this.sessionModel({ ...createSessionDto, ...clientData });
   }
 
   getUserSessions(userId: string) {
@@ -52,11 +57,20 @@ export class SessionService {
     id: mongoose.Types.ObjectId,
     updateSessionDto: UpdateSessionDto,
   ) {
+    const clientData: ISchemaClientData = this.cls.get('clientData');
+    console.log('refreshing and editing session', { clientData });
     const rt = updateSessionDto.refreshToken;
     if (rt) updateSessionDto.refreshToken = this.hashToken(rt);
-    return this.sessionModel.findByIdAndUpdate(id, updateSessionDto, {
-      returnDocument: 'after',
-    });
+    return this.sessionModel.findByIdAndUpdate(
+      id,
+      {
+        ...updateSessionDto,
+        ...clientData,
+      },
+      {
+        returnDocument: 'after',
+      },
+    );
   }
 
   deleteSessionExcept(userId: string, sessionId: string) {

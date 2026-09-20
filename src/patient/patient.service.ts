@@ -94,6 +94,10 @@ export class PatientService {
     if (assignment.patientId.toString() !== patientId) {
       throw new ForbiddenException('Access denied');
     }
+
+    if (assignment.status !== 'active')
+      throw new ForbiddenException('Inactive assignment');
+
     return this.sessionResultService.create({ ...dto, patientId });
   }
 

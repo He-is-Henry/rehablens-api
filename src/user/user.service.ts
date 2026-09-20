@@ -116,7 +116,7 @@ export class UserService {
     ]);
   }
 
-  findOne(filter: Partial<UserDocument>) {
+  findOne(filter: QueryFilter<UserDocument>) {
     return this.userModel.findOne(filter);
   }
 

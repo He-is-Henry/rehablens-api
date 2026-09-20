@@ -10,16 +10,25 @@ export class RequestLoggerMiddleware implements NestMiddleware {
   constructor(private readonly requestLogService: RequestLogService) {}
 
   use(req: Request, res: Response, next: NextFunction) {
-    console.log(`New request ${req.url}`);
-
-    if (SKIP.some((p) => req.originalUrl.startsWith(p))) return next();
+    if (SKIP.some((p) => req.originalUrl.startsWith(p))) {
+      console.log(`Skipping request ${req.originalUrl}`);
+      return next();
+    }
 
     const start = Date.now();
 
     res.on('finish', () => {
-      // req.user is populated by now, guards have already run
       const user = req.user;
       const client = extractClientData(req);
+
+      const skipLog = res.skipLog;
+
+      if (skipLog) {
+        console.log(`Skipping request logging ${req.originalUrl}`);
+        return;
+      }
+
+      console.log(`Logging request ${req.originalUrl}`);
 
       this.requestLogService.record({
         method: req.method,

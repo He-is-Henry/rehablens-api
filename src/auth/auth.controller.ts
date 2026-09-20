@@ -20,10 +20,6 @@ import {
   ChangeInitialPasswordDto,
   ChangePasswordDto,
 } from './dto/create-auth.dto';
-import {
-  ClientData,
-  type ISchemaClientData,
-} from './decorators/client-info.decorator';
 import { Public } from 'src/common/decorators/public.decorator';
 import type { Request, Response } from 'express';
 import { EditProfileDto } from './dto/update-auth.dto';
@@ -35,11 +31,8 @@ export class AuthController {
 
   @Public()
   @Post('login')
-  login(
-    @Body() loginDto: LoginDto,
-    @ClientData() clientData: ISchemaClientData,
-  ) {
-    return this.authService.login(loginDto, clientData);
+  login(@Body() loginDto: LoginDto) {
+    return this.authService.login(loginDto);
   }
 
   @Get('profile')
@@ -54,11 +47,8 @@ export class AuthController {
 
   @Public()
   @Post('refresh')
-  refresh(
-    @Body() refreshDto: RefreshDto,
-    @ClientData() clientData: ISchemaClientData,
-  ) {
-    return this.authService.refresh(refreshDto.refreshToken, clientData);
+  refresh(@Body() refreshDto: RefreshDto) {
+    return this.authService.refresh(refreshDto.refreshToken);
   }
 
   @Public()
@@ -84,12 +74,10 @@ export class AuthController {
   changeInitialPassword(
     @Req() req: Request,
     @Body() changeInitialPasswordDto: ChangeInitialPasswordDto,
-    @ClientData() clientData: ISchemaClientData,
   ) {
     return this.authService.changeInitialPassword(
       req.user!.id,
       changeInitialPasswordDto.newPassword,
-      clientData,
     );
   }
 
@@ -97,13 +85,11 @@ export class AuthController {
   changePassword(
     @Req() req: Request,
     @Body() changePasswordDto: ChangePasswordDto,
-    @ClientData() clientData: ISchemaClientData,
   ) {
     return this.authService.changePassword(
       req.user!.id,
       changePasswordDto.currentPassword,
       changePasswordDto.newPassword,
-      clientData,
     );
   }
 
@@ -141,10 +127,7 @@ export class AuthController {
 
   @Public()
   @Post('recover')
-  recoverAccount(
-    @Body() dto: RecoverAccountDto,
-    @ClientData() clientData: ISchemaClientData,
-  ) {
-    return this.authService.recoverAccount(dto, clientData);
+  recoverAccount(@Body() dto: RecoverAccountDto) {
+    return this.authService.recoverAccount(dto);
   }
 }

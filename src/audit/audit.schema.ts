@@ -36,9 +36,14 @@ export class AuditLog {
   @Prop({ type: [AuditPartySchema], default: [] })
   affected!: AuditParty[];
 
-  @Prop() ipAddress?: string;
-  @Prop() deviceInfo?: string;
-  @Prop() location?: string;
+  @Prop()
+  ipAddress?: string;
+
+  @Prop()
+  deviceInfo?: string;
+
+  @Prop()
+  location?: string;
 
   @Prop({ enum: ['success', 'failure'], default: 'success' })
   outcome!: 'success' | 'failure';

@@ -5,9 +5,11 @@ import { PatientHospitalModule } from 'src/patient-hospital/patient-hospital.mod
 import { UserModule } from 'src/user/user.module';
 import { AssignmentModule } from 'src/assignment/assignment.module';
 import { SessionResultModule } from 'src/session-result/session-result.module';
+import { AuditModule } from 'src/audit/audit.module';
 
 @Module({
   imports: [
+    AuditModule,
     PatientHospitalModule,
     UserModule,
     AssignmentModule,

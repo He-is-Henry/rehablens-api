@@ -10,6 +10,8 @@ import { PatientHospitalModule } from 'src/patient-hospital/patient-hospital.mod
 import { MailModule } from 'src/mail/mail.module';
 import { AssignmentModule } from 'src/assignment/assignment.module';
 import { SessionResultModule } from 'src/session-result/session-result.module';
+import { AuditModule } from 'src/audit/audit.module';
+import { ExerciseModule } from 'src/exercise/exercise.module';
 
 @Module({
   imports: [
@@ -17,8 +19,10 @@ import { SessionResultModule } from 'src/session-result/session-result.module';
       { name: Hospital.name, schema: HospitalSchema },
       { name: User.name, schema: UserSchema },
     ]),
+    AuditModule,
     UserModule,
     CounterModule,
+    ExerciseModule,
     PatientHospitalModule,
     MailModule,
     AssignmentModule,

@@ -27,7 +27,6 @@ export class PatientController {
   @Roles(UserRole.PATIENT)
   @Get('hospitals/:linkId')
   getHospital(@Req() req: Request, @Param('linkId') linkId: string) {
-    console.log('Here!');
     return this.patientService.getHospital(req.user!.id, linkId);
   }
 

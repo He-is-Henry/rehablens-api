@@ -13,6 +13,7 @@ import { Model } from 'mongoose';
 import { CreatePatientHospitalDto } from './dto/create-patient-hospital.dto';
 import { UserService } from 'src/user/user.service';
 import mongoose from 'mongoose';
+import { UserDocument } from 'src/user/user.schema';
 
 @Injectable()
 export class PatientHospitalService {
@@ -108,7 +109,9 @@ export class PatientHospitalService {
 
     current.verified = !current.verified;
     await current.save();
-    return current.populate('staffId patientId');
+    return current.populate<{ staffId: UserDocument; patientId: UserDocument }>(
+      'staffId patientId',
+    );
   }
 
   assignStaff(linkId: string, staffId: string) {
@@ -116,6 +119,8 @@ export class PatientHospitalService {
       .findByIdAndUpdate(linkId, {
         staffId: new mongoose.Types.ObjectId(staffId),
       })
-      .populate('staffId patientId');
+      .populate<{ staffId: UserDocument; patientId: UserDocument }>(
+        'staffId patientId',
+      );
   }
 }

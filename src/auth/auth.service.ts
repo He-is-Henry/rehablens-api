@@ -15,7 +15,6 @@ import {
 } from './dto/create-auth.dto';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { ISchemaClientData } from './decorators/client-info.decorator';
 import { SessionService } from 'src/session/session.service';
 import { EditProfileDto } from './dto/update-auth.dto';
 import { OtpService } from 'src/otp/otp.service';
@@ -29,6 +28,7 @@ import { HospitalDocument } from 'src/hospital/hospital.schema';
 import { RecoverAccountDto } from 'src/user/dto/update-user.dto';
 import { AuditService } from 'src/audit/audit.service';
 import { AuditAction } from 'src/audit/audit-action.enum';
+import { ClsService } from 'nestjs-cls';
 
 @Injectable()
 export class AuthService {
@@ -40,9 +40,10 @@ export class AuthService {
     private readonly otpService: OtpService,
     private readonly mailService: MailService,
     private readonly auditService: AuditService,
+    private readonly cls: ClsService,
   ) {}
 
-  async login(loginDto: LoginDto, clientData: ISchemaClientData) {
+  async login(loginDto: LoginDto) {
     const authResult = await this.userService.authenticate(loginDto);
     const user = authResult.user;
 
@@ -53,9 +54,9 @@ export class AuthService {
 
     if (authResult.error) {
       this.auditService.record({
-        ...clientData,
         action: AuditAction.LOGIN,
         actor: { userId, name, role, customId },
+        affected: [{ userId, name, role, customId }],
         outcome: 'failure',
       });
 
@@ -76,7 +77,6 @@ export class AuthService {
       );
 
     const session = await this.sessionService.init({
-      ...clientData,
       userId: user._id.toString(),
       refreshToken: '',
     });
@@ -101,7 +101,6 @@ export class AuthService {
     );
 
     this.auditService.record({
-      ...clientData,
       action: AuditAction.LOGIN,
       actor: { userId, name, role, customId },
       outcome: 'success',
@@ -116,11 +115,7 @@ export class AuthService {
     };
   }
 
-  async changeInitialPassword(
-    id: string,
-    newPassword: string,
-    clientData: ISchemaClientData,
-  ) {
+  async changeInitialPassword(id: string, newPassword: string) {
     const filter: Partial<UserDocument> = {
       _id: new mongoose.Types.ObjectId(id),
       mustChangePassword: true,
@@ -138,8 +133,8 @@ export class AuthService {
     const { name, role, customId } = user;
 
     this.auditService.record({
-      ...clientData,
       actor: { userId, name, role, customId },
+      affected: [{ userId, name, role, customId }],
       action: AuditAction.PASSWORD_RESET,
       outcome: 'success',
     });
@@ -154,7 +149,6 @@ export class AuthService {
     id: string,
     currentPassword: string,
     newPassword: string,
-    clientData: ISchemaClientData,
   ) {
     const user = await this.userService.findById(id).select('+password');
 
@@ -170,8 +164,8 @@ export class AuthService {
 
     if (!passwordCorrect) {
       this.auditService.record({
-        ...clientData,
         actor: { userId, name, role, customId },
+        affected: [{ userId, name, role, customId }],
         action: AuditAction.PASSWORD_RESET,
         outcome: 'failure',
       });
@@ -188,9 +182,9 @@ export class AuthService {
 
     await this.userService.findOneAndUpdate(filter, update);
     this.auditService.record({
-      ...clientData,
       actor: { userId, name, role, customId },
       action: AuditAction.PASSWORD_RESET,
+      affected: [{ userId, name, role, customId }],
       outcome: 'success',
     });
     return {
@@ -199,8 +193,6 @@ export class AuthService {
   }
 
   signTokens(user: PayloadUser, sessionId: string) {
-    console.log(user);
-
     const payload: Payload = {
       id: user._id.toString(),
       customId: user.customId,
@@ -249,7 +241,7 @@ export class AuthService {
     return decoded;
   }
 
-  async refresh(token: string, clientData: ISchemaClientData) {
+  async refresh(token: string) {
     const decoded = await this.verifyRefreshToken(token);
 
     if (!decoded) throw new UnauthorizedException('Invalid token');
@@ -279,7 +271,6 @@ export class AuthService {
 
     await this.sessionService.updateSession(session._id, {
       refreshToken,
-      ...clientData,
     });
 
     const sessions = await this.sessionService.getUserSessions(userId);
@@ -508,8 +499,8 @@ export class AuthService {
     return this.userService.delete(id);
   }
 
-  async recoverAccount(dto: RecoverAccountDto, clientData: ISchemaClientData) {
+  async recoverAccount(dto: RecoverAccountDto) {
     await this.userService.recoverAccount(dto);
-    return this.login({ email: dto.email, password: dto.password }, clientData);
+    return this.login({ email: dto.email, password: dto.password });
   }
 }

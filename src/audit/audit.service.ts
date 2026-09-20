@@ -1,9 +1,10 @@
-import { Inject, Injectable, Scope } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AuditLog } from './audit.schema';
 import { AuditAction } from './audit-action.enum';
-import { REQUEST } from '@nestjs/core';
+import { ClsService } from 'nestjs-cls';
+import { ISchemaClientData } from 'src/auth/decorators/client-info.decorator';
 
 export type AuditParams = {
   action: AuditAction;
@@ -15,25 +16,24 @@ export type AuditParams = {
     role: string;
     customId?: string;
   }[];
-  ipAddress?: string;
-  deviceInfo?: string;
-  location?: string;
   outcome?: 'success' | 'failure';
   note?: string;
 };
 
-@Injectable({ scope: Scope.REQUEST })
+@Injectable()
 export class AuditService {
   constructor(
     @InjectModel(AuditLog.name)
     private readonly auditLogModel: Model<AuditLog>,
-    @Inject(REQUEST) private readonly request: Request,
+    private readonly cls: ClsService,
   ) {}
 
   record(params: AuditParams) {
+    const clientData: ISchemaClientData = this.cls.get('clientData');
     void this.auditLogModel
       .create({
         ...params,
+        ...clientData,
         affected: params.affected ?? [],
         createdAt: new Date(),
       })
@@ -66,11 +66,13 @@ export class AuditService {
       .limit(limit);
   }
 
-  countUnseen(userId: string) {
-    return this.auditLogModel.countDocuments({
+  async countUnseen(userId: string) {
+    const count = await this.auditLogModel.countDocuments({
       'affected.userId': userId,
       seenBy: { $ne: userId },
     });
+
+    return { count };
   }
 
   markSeen(userId: string, logIds: string[]) {

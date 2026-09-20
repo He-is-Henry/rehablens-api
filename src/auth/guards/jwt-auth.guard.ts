@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { IS_PUBLIC_KEY } from 'src/common/decorators/public.decorator';
 import { Payload } from '../dto/create-auth.dto';
 
@@ -27,9 +27,11 @@ export class JwtAuthGuard implements CanActivate {
     if (isPublic) return true;
 
     const request = context.switchToHttp().getRequest<Request>();
+    const response = context.switchToHttp().getResponse<Response>();
     const token = this.extractTokenFromHeader(request);
 
     if (!token) {
+      response.skipLog = true; // don't log this request, it'll bloat errors, and it's not an actual error
       throw new UnauthorizedException(
         'Access token missing from request headers',
       );
@@ -37,13 +39,13 @@ export class JwtAuthGuard implements CanActivate {
 
     try {
       const payload: Payload = await this.jwtService.verifyAsync(token);
-      console.log(payload);
-
       if (
         payload.mustChangePassword &&
         !request.url.includes('/auth/change-initial-password') &&
         !request.url.includes('/auth/profile')
       ) {
+        response.skipLog = true;
+
         throw new ForbiddenException({
           statusCode: 403,
           message: 'You must change your temporary password before proceeding.',
@@ -53,6 +55,9 @@ export class JwtAuthGuard implements CanActivate {
 
       request.user = payload;
     } catch (e) {
+      console.log('setting skiplog to true');
+      response.skipLog = true;
+
       if (e instanceof ForbiddenException) throw e;
       console.log(e);
       throw new UnauthorizedException(

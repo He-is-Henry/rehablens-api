@@ -4,4 +4,8 @@ declare module 'express' {
   interface Request {
     user?: Payload;
   }
+
+  interface Response {
+    skipLog?: boolean;
+  }
 }

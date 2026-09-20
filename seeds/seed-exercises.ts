@@ -435,3 +435,31 @@ seed().catch((err) => {
   console.error(err);
   process.exit(1);
 });
+
+// Patient opens app, sees hospitals list
+// (and today's tasks right under the dashboard)
+// with another tab for all tasks,
+// (maybe fetch specific amount forward with read more)
+// we handle time zone changes by sending timezone when requesting schedule,
+// i think each schedule still takes assigment shape anyways, just some things added,
+// patient id and hospital id normalized for easy access
+// (maybe hospitalId might not be necessary, idk)
+
+// Hospital admin and staff
+// only query schedule per patient/patient link
+
+// now, let's talk in backend terms
+// 1. Patient... for schedules today, it's quite easy,
+// use id in jwt to get all available links, check the verified ones
+// use the verified link hospitalids to get eligible schedules ($in operator)
+// now, we know why hospitalId should exist in the doc... everything else follows this pattern anyways...
+// and exercise will be populated, either by normalization or through assigmentId down to exerciseId
+// we might not populate and only fetch each exercise when schedule is clicked..
+// but then the patients don't see what they're supposed to do on first screen ..so, populate it is
+
+// 2. hospital side of the equation
+// See all patients, click one of em, see the assignments they have, then their schedule under each of em.
+// so.. hospitalId in the staff/admin jwt is used to filter the patients..
+// but again, regular staff, only have access to specific schedules, so...
+// you only see patient activities when you click them.. which means you only send the patient id/link id..
+// and then the fetching schedules and assignments can be gotten using that id, the backend verifies your access to the patient

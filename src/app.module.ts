@@ -17,9 +17,19 @@ import { RequestLoggerMiddleware } from './request-log/request-logger.middleware
 import { AdminModule } from './admin/admin.module';
 import { RequestLogModule } from './request-log/request-log.module';
 import { AuditModule } from './audit/audit.module';
+import { ClsModule } from 'nestjs-cls';
+import { ClientDataMiddleware } from './common/middlewares/client-data.middleware';
 
 @Module({
   imports: [
+    ClsModule.forRoot({
+      global: true,
+
+      middleware: {
+        mount: true,
+      },
+    }),
+
     ConfigModule.forRoot({
       isGlobal: true,
     }),
@@ -70,6 +80,7 @@ import { AuditModule } from './audit/audit.module';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
+    consumer.apply(ClientDataMiddleware).forRoutes('*');
     consumer.apply(RequestLoggerMiddleware).forRoutes('*');
   }
 }
