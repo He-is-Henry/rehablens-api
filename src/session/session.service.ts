@@ -19,10 +19,24 @@ export class SessionService {
     return crypto.createHash('sha256').update(token).digest('hex');
   }
 
+  private async detachPushToken(pushToken?: string) {
+    if (!pushToken) return;
+    await this.sessionModel.updateMany(
+      { pushToken },
+      { $unset: { pushToken: '' } },
+    );
+  }
+
   async init(createSessionDto: CreateSessionDto) {
     const clientData: ISchemaClientData = this.cls.get('clientData');
     const filter = { userId: createSessionDto.userId };
 
+    // 1. Ensure this pushToken is not attached to any other session (across any user)
+    if (createSessionDto.pushToken) {
+      await this.detachPushToken(createSessionDto.pushToken);
+    }
+
+    // 2. Cap maximum sessions per user to 5
     const extraSessions = await this.sessionModel
       .find(filter)
       .sort({ createdAt: -1 })
@@ -34,7 +48,13 @@ export class SessionService {
       const idsToDelete = extraSessions.map((s) => s._id);
       await this.sessionModel.deleteMany({ _id: { $in: idsToDelete } });
     }
-    return new this.sessionModel({ ...createSessionDto, ...clientData });
+
+    // 3. Create the new session
+    const session = new this.sessionModel({
+      ...createSessionDto,
+      ...clientData,
+    });
+    return session.save();
   }
 
   getUserSessions(userId: string) {
@@ -58,9 +78,9 @@ export class SessionService {
     updateSessionDto: UpdateSessionDto,
   ) {
     const clientData: ISchemaClientData = this.cls.get('clientData');
-    console.log('refreshing and editing session', { clientData });
     const rt = updateSessionDto.refreshToken;
     if (rt) updateSessionDto.refreshToken = this.hashToken(rt);
+
     return this.sessionModel.findByIdAndUpdate(
       id,
       {
@@ -77,13 +97,13 @@ export class SessionService {
     filter: QueryFilter<SessionDocument>,
     update: QueryFilter<Session>,
   ) {
-    if (update.pushToken)
-      await this.sessionModel.updateMany(
-        { pushToken: update.pushToken },
-        { $unset: { pushToken: '' } },
-      );
+    if (typeof update.pushToken === 'string') {
+      await this.detachPushToken(update.pushToken);
+    }
 
-    return this.sessionModel.findOneAndUpdate(filter, update);
+    return this.sessionModel.findOneAndUpdate(filter, update, {
+      returnDocument: 'after',
+    });
   }
 
   deleteSessionExcept(userId: string, sessionId: string) {
