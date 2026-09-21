@@ -11,6 +11,9 @@ export class LoginDto {
 
   @IsString()
   password!: string;
+
+  @IsString()
+  pushToken?: string;
 }
 
 export class Payload {
@@ -77,4 +80,9 @@ export class ChangePasswordDto {
 
   @IsString()
   newPassword!: string;
+}
+
+export class PatchTokenDto {
+  @IsString()
+  pushToken!: string;
 }

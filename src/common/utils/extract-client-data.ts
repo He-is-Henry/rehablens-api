@@ -96,7 +96,6 @@ export function extractClientData(request: Request) {
 
   // 2. Resolve device information
   const userAgent = request.headers['user-agent'] || '';
-  console.log({ userAgent });
   const deviceInfo = parseDeviceInfo(userAgent);
 
   // 3. Resolve location (with 192.168 local check, full country names & timezone city fallback)

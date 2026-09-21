@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as crypto from 'crypto';
-import { Session } from './session.schema';
-import mongoose, { Model } from 'mongoose';
+import { Session, SessionDocument } from './session.schema';
+import mongoose, { Model, QueryFilter } from 'mongoose';
 import { CreateSessionDto } from './dto/create-session-dto';
 import { UpdateSessionDto } from './dto/update-session-dto';
 import { ClsService } from 'nestjs-cls';
@@ -71,6 +71,19 @@ export class SessionService {
         returnDocument: 'after',
       },
     );
+  }
+
+  async findOneAndUpdate(
+    filter: QueryFilter<SessionDocument>,
+    update: QueryFilter<Session>,
+  ) {
+    if (update.pushToken)
+      await this.sessionModel.updateMany(
+        { pushToken: update.pushToken },
+        { $unset: { pushToken: '' } },
+      );
+
+    return this.sessionModel.findOneAndUpdate(filter, update);
   }
 
   deleteSessionExcept(userId: string, sessionId: string) {

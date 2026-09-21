@@ -16,6 +16,9 @@ export class Session {
 
   @Prop({ required: true })
   location!: string;
+
+  @Prop({ required: false })
+  pushToken?: string;
 }
 
 export type SessionDocument = Session & Document;

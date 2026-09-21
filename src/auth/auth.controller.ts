@@ -19,6 +19,7 @@ import {
   ResetPasswordDto,
   ChangeInitialPasswordDto,
   ChangePasswordDto,
+  PatchTokenDto,
 } from './dto/create-auth.dto';
 import { Public } from 'src/common/decorators/public.decorator';
 import type { Request, Response } from 'express';
@@ -55,6 +56,15 @@ export class AuthController {
   @Post('logout')
   logout(@Body() logoutDto: LogoutDto) {
     return this.authService.logout(logoutDto.refreshToken);
+  }
+
+  @Patch('session/patch-token')
+  patchToken(@Body() dto: PatchTokenDto, @Req() req: Request) {
+    return this.authService.patchPushToken(
+      req.user!.id,
+      dto.pushToken,
+      req.user!.sessionId,
+    );
   }
 
   @Delete('session/all')

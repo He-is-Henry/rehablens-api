@@ -44,6 +44,7 @@ export class AuthService {
   ) {}
 
   async login(loginDto: LoginDto) {
+    console.log('Logging in with push token: ', loginDto?.pushToken);
     const authResult = await this.userService.authenticate(loginDto);
     const user = authResult.user;
 
@@ -211,6 +212,17 @@ export class AuthService {
       accessToken,
       refreshToken,
     };
+  }
+
+  patchPushToken(userId: string, pushToken: string, sessionId: string) {
+    console.log('Patching token: ', pushToken);
+    return this.sessionService.findOneAndUpdate(
+      {
+        userId,
+        _id: sessionId,
+      },
+      { pushToken },
+    );
   }
 
   async getProfile(id: string, sessionId: string) {
@@ -501,6 +513,9 @@ export class AuthService {
 
   async recoverAccount(dto: RecoverAccountDto) {
     await this.userService.recoverAccount(dto);
-    return this.login({ email: dto.email, password: dto.password });
+    return this.login({
+      email: dto.email,
+      password: dto.password,
+    });
   }
 }
