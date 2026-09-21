@@ -3,12 +3,14 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AuditLog, AuditLogSchema } from './audit.schema';
 import { AuditService } from './audit.service';
 import { AuditController } from './audit.controller';
+import { NotificationsModule } from 'src/notification/notification.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: AuditLog.name, schema: AuditLogSchema },
     ]),
+    NotificationsModule,
   ],
   providers: [AuditService],
   controllers: [AuditController],

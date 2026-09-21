@@ -5,6 +5,11 @@ import { AuditLog } from './audit.schema';
 import { AuditAction } from './audit-action.enum';
 import { ClsService } from 'nestjs-cls';
 import { ISchemaClientData } from 'src/auth/decorators/client-info.decorator';
+import {
+  AuditLogEntry,
+  renderAuditNotification,
+} from './audit-notification-formatter';
+import { NotificationService } from 'src/notification/notification.service';
 
 export type AuditParams = {
   action: AuditAction;
@@ -26,10 +31,12 @@ export class AuditService {
     @InjectModel(AuditLog.name)
     private readonly auditLogModel: Model<AuditLog>,
     private readonly cls: ClsService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   record(params: AuditParams) {
     const clientData: ISchemaClientData = this.cls.get('clientData');
+    const currentSessionId: string | undefined = this.cls.get('sessionId');
     void this.auditLogModel
       .create({
         ...params,
@@ -37,7 +44,55 @@ export class AuditService {
         affected: params.affected ?? [],
         createdAt: new Date(),
       })
+      .then((createdLog) => {
+        this.dispatchNotification(
+          createdLog.toObject(),
+          params,
+          currentSessionId,
+        );
+      })
       .catch((e) => console.error('audit log failed', e));
+  }
+
+  private dispatchNotification(
+    logEntry: AuditLogEntry,
+    params: AuditParams,
+    currentSessionId?: string,
+  ) {
+    if (params.action === AuditAction.LOGIN) {
+      const payload = renderAuditNotification(logEntry, params.actor.userId);
+      if (!payload) return;
+
+      void this.notificationService.sendToUser(
+        params.actor.userId,
+        payload.title,
+        payload.body,
+        { excludeSessionId: currentSessionId },
+      );
+      return;
+    }
+
+    if (!params.affected?.length) return;
+
+    for (const target of params.affected) {
+      if (target.userId === params.actor.userId) continue;
+
+      const payload = renderAuditNotification(logEntry, target.userId);
+      if (!payload) continue;
+
+      void this.notificationService.sendToUser(
+        target.userId,
+        payload.title,
+        payload.body,
+        {
+          data: {
+            action: params.action,
+            objectId: params.object?.id,
+            objectType: params.object?.type,
+          },
+        },
+      );
+    }
   }
 
   findForUser(

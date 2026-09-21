@@ -31,12 +31,10 @@ export class SessionService {
     const clientData: ISchemaClientData = this.cls.get('clientData');
     const filter = { userId: createSessionDto.userId };
 
-    // 1. Ensure this pushToken is not attached to any other session (across any user)
     if (createSessionDto.pushToken) {
       await this.detachPushToken(createSessionDto.pushToken);
     }
 
-    // 2. Cap maximum sessions per user to 5
     const extraSessions = await this.sessionModel
       .find(filter)
       .sort({ createdAt: -1 })
@@ -49,12 +47,11 @@ export class SessionService {
       await this.sessionModel.deleteMany({ _id: { $in: idsToDelete } });
     }
 
-    // 3. Create the new session
     const session = new this.sessionModel({
       ...createSessionDto,
       ...clientData,
     });
-    return session.save();
+    return session;
   }
 
   getUserSessions(userId: string) {

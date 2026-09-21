@@ -10,12 +10,14 @@ import { JwtService } from '@nestjs/jwt';
 import type { Request, Response } from 'express';
 import { IS_PUBLIC_KEY } from 'src/common/decorators/public.decorator';
 import { Payload } from '../dto/create-auth.dto';
+import { ClsService } from 'nestjs-cls';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly jwtService: JwtService,
     private readonly reflector: Reflector,
+    private readonly cls: ClsService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -54,6 +56,8 @@ export class JwtAuthGuard implements CanActivate {
       }
 
       request.user = payload;
+      this.cls.set('userId', payload.id);
+      this.cls.set('sessionId', payload.sessionId);
     } catch (e) {
       console.log('setting skiplog to true');
       response.skipLog = true;

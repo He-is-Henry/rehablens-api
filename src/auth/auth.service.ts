@@ -80,6 +80,7 @@ export class AuthService {
     const session = await this.sessionService.init({
       userId: user._id.toString(),
       refreshToken: '',
+      pushToken: loginDto.pushToken,
     });
 
     const { accessToken, refreshToken } = this.signTokens(
