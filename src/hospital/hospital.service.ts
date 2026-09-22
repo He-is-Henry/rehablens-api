@@ -451,10 +451,17 @@ export class HospitalService {
       },
     ];
 
+    const object = {
+      id: staff._id.toString(),
+      name: staff.name,
+      type: 'user',
+    };
+
     this.auditService.record({
       actor,
       action: AuditAction.STAFF_ASSIGNED,
       affected,
+      object,
       outcome: 'success',
     });
 

@@ -41,8 +41,7 @@ const isTarget = (party?: AuditParty, uid?: string) =>
 
 const isSelfAction = (log: AuditLogEntry) =>
   !log.affected?.length ||
-  (log.affected.length === 1 &&
-    log.affected[0].userId === log.actor.userId);
+  (log.affected.length === 1 && log.affected[0].userId === log.actor.userId);
 
 const getActor = (log: AuditLogEntry, targetUserId: string) =>
   isActor(log, targetUserId) ? 'You' : formatParty(log.actor);
@@ -63,10 +62,7 @@ const getAffected = (log: AuditLogEntry, targetUserId: string) => {
 };
 
 const getLoginContext = (log: AuditLogEntry) => {
-  const context = [
-    log.deviceInfo,
-    log.location,
-  ].filter(Boolean);
+  const context = [log.deviceInfo, log.location].filter(Boolean);
 
   if (context.length === 0) return '';
 

@@ -26,6 +26,8 @@ export class NotificationService {
       ),
     ];
 
+    console.log('Push tokens: ', pushTokens);
+
     if (pushTokens.length === 0) return;
 
     const messages: ExpoPushMessage[] = pushTokens.map((token) => ({
@@ -33,6 +35,7 @@ export class NotificationService {
       sound: 'default',
       title,
       body,
+      channelId: 'general',
       data: options?.data ?? {},
     }));
 
