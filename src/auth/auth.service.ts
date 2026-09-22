@@ -102,6 +102,8 @@ export class AuthService {
         : s,
     );
 
+    this.cls.set('sessionId', session._id.toString());
+
     this.auditService.record({
       action: AuditAction.LOGIN,
       actor: { userId, name, role, customId },
