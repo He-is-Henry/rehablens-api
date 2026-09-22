@@ -61,8 +61,15 @@ export class AuditService {
   ) {
     if (params.action === AuditAction.LOGIN) {
       const payload = renderAuditNotification(logEntry, params.actor.userId);
-      if (!payload) return;
+      console.log('[AUDIT] LOGIN notification payload:', payload);
 
+    if (!payload) return;
+
+    console.log('[AUDIT] Sending LOGIN push:', {
+      userId: params.actor.userId,
+      excludeSessionId: currentSessionId,
+    });
+      
       void this.notificationService.sendToUser(
         params.actor.userId,
         payload.title,
