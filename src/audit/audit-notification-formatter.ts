@@ -1,5 +1,3 @@
-// src/audit/audit-notification.formatter.ts
-
 import { AuditAction } from './audit-action.enum';
 
 export type AuditParty = {
@@ -15,6 +13,11 @@ export type AuditLogEntry = {
   object?: { id?: string; name: string; type: string };
   affected?: AuditParty[];
   outcome?: 'success' | 'failure';
+  note?: string;
+
+  ipAddress?: string;
+  location?: string;
+  deviceInfo?: string;
 };
 
 export type NotificationPayload = {
@@ -38,7 +41,8 @@ const isTarget = (party?: AuditParty, uid?: string) =>
 
 const isSelfAction = (log: AuditLogEntry) =>
   !log.affected?.length ||
-  (log.affected.length === 1 && log.affected[0].userId === log.actor.userId);
+  (log.affected.length === 1 &&
+    log.affected[0].userId === log.actor.userId);
 
 const getActor = (log: AuditLogEntry, targetUserId: string) =>
   isActor(log, targetUserId) ? 'You' : formatParty(log.actor);
@@ -54,25 +58,37 @@ const getAffected = (log: AuditLogEntry, targetUserId: string) => {
 
   if (names.length === 1) return names[0];
   if (names.length === 2) return `${names[0]} and ${names[1]}`;
+
   return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
+};
+
+const getLoginContext = (log: AuditLogEntry) => {
+  const context = [
+    log.deviceInfo,
+    log.location,
+  ].filter(Boolean);
+
+  if (context.length === 0) return '';
+
+  return ` from ${context.join(' in ')}`;
 };
 
 // Map action to specific titles and body formatters
 const NOTIFICATION_MAP: Partial<Record<AuditAction, NotificationFormatterFn>> =
   {
-    [AuditAction.LOGIN]: (log, targetUserId) => {
-      if (log.outcome === 'failure') return null; // Don't notify external devices on failed logins unless desired
-      return {
-        title: 'Security Alert',
-        body: `A new sign-in was detected for ${getActor(log, targetUserId)}.`,
-      };
-    },
+    [AuditAction.LOGIN]: (log) => ({
+      title: 'Security Alert',
+      body:
+        log.outcome === 'failure'
+          ? `A failed sign-in attempt was detected${getLoginContext(log)}.`
+          : `A new sign-in was detected${getLoginContext(log)}.`,
+    }),
 
     [AuditAction.PASSWORD_RESET]: (log, targetUserId) => ({
       title: 'Security Alert',
       body:
         log.outcome === 'failure'
-          ? 'Failed password reset attempt on your account.'
+          ? `A failed password reset attempt was detected on your account.`
           : `${getActor(log, targetUserId)} reset your password.`,
     }),
 
@@ -99,7 +115,7 @@ const NOTIFICATION_MAP: Partial<Record<AuditAction, NotificationFormatterFn>> =
 
     [AuditAction.SCHEDULE_CREATED]: (log, targetUserId) => ({
       title: 'Session Scheduled',
-      body: `${getActor(log, targetUserId)} scheduled sessions for ${getAffected(log, targetUserId)}.`,
+      body: `${getActor(log, targetUserId)} scheduled a session for ${getAffected(log, targetUserId)}.`,
     }),
 
     [AuditAction.SCHEDULE_CANCELLED]: (log, targetUserId) => ({
@@ -119,7 +135,7 @@ const NOTIFICATION_MAP: Partial<Record<AuditAction, NotificationFormatterFn>> =
 
     [AuditAction.PATIENT_VERIFIED]: (log, targetUserId) => ({
       title: 'Account Verified',
-      body: `${getActor(log, targetUserId)} verified your account status.`,
+      body: `${getActor(log, targetUserId)} verified your account.`,
     }),
   };
 
@@ -132,6 +148,7 @@ export function renderAuditNotification(
   targetUserId: string,
 ): NotificationPayload | null {
   const formatter = NOTIFICATION_MAP[log.action];
+
   if (!formatter) return null;
 
   return formatter(log, targetUserId);
