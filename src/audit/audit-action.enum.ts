@@ -18,4 +18,5 @@ export enum AuditAction {
   SESSION_COMPLETED = 'completed a session for',
   EXERCISE_CREATED = 'created the exercise',
   IMPERSONATION = 'impersonated',
+  SCHEDULE_UPDATED = 'updated a scheduled session for',
 }

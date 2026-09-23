@@ -198,7 +198,7 @@ export class StaffService {
 
     this.auditService.record({
       action: isDelete
-        ? AuditAction.ACCOUNT_DELETED
+        ? AuditAction.ASSIGNMENT_DELETED
         : AuditAction.ASSIGNMENT_UPDATED,
       actor,
       affected,

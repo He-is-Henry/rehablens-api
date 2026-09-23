@@ -22,14 +22,17 @@ export class SessionResult {
   @Prop({ required: true, min: 0 })
   durationSeconds!: number;
 
+  @Prop({ type: Types.ObjectId, ref: 'Schedule', required: true })
+  scheduleId!: Types.ObjectId;
+
   @Prop({
     required: true,
-    enum: ['completed', 'abandoned'],
+    enum: ['in_progress', 'completed', 'abandoned'],
   })
-  status!: 'completed' | 'abandoned';
+  status!: 'in_progress' | 'completed' | 'abandoned';
 
-  @Prop({ required: true, type: Date })
-  completedAt!: Date;
+  @Prop({ type: Date })
+  completedAt?: Date;
 }
 
 export type SessionResultDocument = SessionResult & Document;

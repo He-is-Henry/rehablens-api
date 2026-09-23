@@ -114,6 +114,15 @@ const NOTIFICATION_MAP: Partial<Record<AuditAction, NotificationFormatterFn>> =
       body: `${getActor(log, targetUserId)} scheduled a session for ${getAffected(log, targetUserId)}.`,
     }),
 
+    [AuditAction.SESSION_COMPLETED]: (log, targetUserId) => ({
+      title: 'Session Completed',
+      body: `${getActor(log, targetUserId)} completed a session${log.object ? ` for "${log.object.name}"` : ''}.`,
+    }),
+
+    [AuditAction.SCHEDULE_UPDATED]: (log, targetUserId) => ({
+      title: 'Session Updated',
+      body: `${getActor(log, targetUserId)} updated a scheduled session for ${getAffected(log, targetUserId)}.`,
+    }),
     [AuditAction.SCHEDULE_CANCELLED]: (log, targetUserId) => ({
       title: 'Session Cancelled',
       body: `${getActor(log, targetUserId)} cancelled a scheduled session for ${getAffected(log, targetUserId)}.`,
