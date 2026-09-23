@@ -88,13 +88,12 @@ export class ScheduleService {
         patientId,
         hospitalId: { $in: hospitalIds },
         ...(date && { scheduledDate: date }),
-        ...(cursor && { scheduledDate: { $gt: cursor } }),
+        ...(cursor && { _id: { $gt: cursor } }),
       })
-      .sort({ scheduledDate: 1 })
+      .sort({ _id: 1 })
       .limit(limit)
       .populate({ path: 'assignmentId', populate: { path: 'exerciseId' } });
   }
-
   async update(
     id: string,
     hospitalId: string,
