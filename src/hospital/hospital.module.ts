@@ -12,6 +12,7 @@ import { AssignmentModule } from 'src/assignment/assignment.module';
 import { SessionResultModule } from 'src/session-result/session-result.module';
 import { AuditModule } from 'src/audit/audit.module';
 import { ExerciseModule } from 'src/exercise/exercise.module';
+import { ScheduleModule } from 'src/schedule/schedule.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { ExerciseModule } from 'src/exercise/exercise.module';
     MailModule,
     AssignmentModule,
     SessionResultModule,
+    ScheduleModule,
   ],
   controllers: [HospitalController],
   providers: [HospitalService],

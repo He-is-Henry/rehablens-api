@@ -14,6 +14,8 @@ import { Roles } from 'src/common/decorators/roles.decorator';
 import { UserRole } from 'src/user/dto/create-user.dto';
 import { CreateAssignmentDto } from 'src/assignment/dto/create-assignment.dto';
 import { UpdateAssignmentDto } from 'src/assignment/dto/update-assignment.dto';
+import { CreateSchedulesDto } from 'src/schedule/dto/create-schedule.dto';
+import { UpdateScheduleDto } from 'src/schedule/dto/update-schedule.dto';
 
 @Controller('staff')
 export class StaffController {
@@ -82,5 +84,47 @@ export class StaffController {
     @Param('assignmentId') assignmentId: string,
   ) {
     return this.staffService.getSessionResults(assignmentId, req.user!.id);
+  }
+  @Roles(UserRole.STAFF)
+  @Get('assignment/:assignmentId/schedules')
+  getSchedules(
+    @Param('assignmentId') assignmentId: string,
+    @Req() req: Request,
+  ) {
+    return this.staffService.getSchedules(assignmentId, req.user!.id);
+  }
+
+  @Roles(UserRole.STAFF)
+  @Post('assignment/:assignmentId/schedules')
+  createSchedules(
+    @Param('assignmentId') assignmentId: string,
+    @Body() createSchedulesDto: CreateSchedulesDto,
+    @Req() req: Request,
+  ) {
+    return this.staffService.createSchedules(
+      assignmentId,
+      req.user!.id,
+      createSchedulesDto,
+    );
+  }
+
+  @Roles(UserRole.STAFF)
+  @Patch('schedules/:scheduleId')
+  updateSchedule(
+    @Param('scheduleId') scheduleId: string,
+    @Body() updateScheduleDto: UpdateScheduleDto,
+    @Req() req: Request,
+  ) {
+    return this.staffService.updateSchedule(
+      scheduleId,
+      req.user!.id,
+      updateScheduleDto,
+    );
+  }
+
+  @Roles(UserRole.STAFF)
+  @Delete('schedules/:scheduleId')
+  deleteSchedule(@Param('scheduleId') scheduleId: string, @Req() req: Request) {
+    return this.staffService.deleteSchedule(scheduleId, req.user!.id);
   }
 }

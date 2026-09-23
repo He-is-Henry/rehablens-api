@@ -30,6 +30,9 @@ import { Payload } from 'src/auth/dto/create-auth.dto';
 import { AuditAction } from 'src/audit/audit-action.enum';
 import { ExerciseService } from 'src/exercise/exercise.service';
 import { ExerciseDocument } from 'src/exercise/exercise.schema';
+import { ScheduleService } from 'src/schedule/schedule.service';
+import { UpdateScheduleDto } from 'src/schedule/dto/update-schedule.dto';
+import { CreateSchedulesDto } from 'src/schedule/dto/create-schedule.dto';
 
 @Injectable()
 export class HospitalService {
@@ -43,6 +46,7 @@ export class HospitalService {
     private readonly exerciseService: ExerciseService,
     private readonly sessionResultService: SessionResultService,
     private readonly auditService: AuditService,
+    private readonly scheduleService: ScheduleService,
   ) {}
 
   async create(createHospitalDto: CreateHospitalDto) {
@@ -695,6 +699,184 @@ export class HospitalService {
     return this.sessionResultService
       .findByAssignment(assignmentId)
       .populate('patientId');
+  }
+
+  async getSchedules(assignmentId: string, hospitalId: string) {
+    await this.getAssignmentById(assignmentId, hospitalId);
+    return this.scheduleService.findByAssignment(assignmentId);
+  }
+
+  async createSchedules(
+    assignmentId: string,
+    hospitalAdminJwt: Payload,
+    dto: CreateSchedulesDto,
+  ) {
+    const entries = dto.entries;
+    const hospitalAdmin = await this.userService
+      .findById(hospitalAdminJwt.id)
+      .select('name role customId');
+
+    if (!hospitalAdmin) throw new ForbiddenException('Account deleted');
+
+    const hospitalId = hospitalAdminJwt.hospitalId!.toString();
+    const assignment = await this.getAssignmentById(assignmentId, hospitalId);
+
+    const patient = await this.userService
+      .findById(assignment.patientId.toString())
+      .select('name role customId');
+
+    if (!patient) throw new NotFoundException('Patient not found');
+
+    const exercise = await this.exerciseService.findById(
+      assignment.exerciseId.toString(),
+    );
+
+    const result = await this.scheduleService.createMany({
+      assignmentId,
+      patientId: assignment.patientId.toString(),
+      hospitalId,
+      entries,
+    });
+
+    if (result.created.length > 0) {
+      this.auditService.record({
+        action: AuditAction.SCHEDULE_UPDATED,
+        actor: {
+          userId: hospitalAdmin._id.toString(),
+          name: hospitalAdmin.name,
+          role: hospitalAdmin.role,
+          customId: hospitalAdmin.customId,
+        },
+        affected: [
+          {
+            userId: patient._id.toString(),
+            name: patient.name,
+            role: patient.role,
+            customId: patient.customId,
+          },
+        ],
+        object: {
+          id: assignment._id.toString(),
+          name: exercise?.name || 'Exercise',
+          type: 'Exercise',
+        },
+      });
+    }
+
+    return result;
+  }
+
+  async updateSchedule(
+    scheduleId: string,
+    hospitalAdminJwt: Payload,
+    dto: UpdateScheduleDto,
+  ) {
+    const hospitalAdmin = await this.userService
+      .findById(hospitalAdminJwt.id)
+      .select('name role customId');
+
+    if (!hospitalAdmin) throw new ForbiddenException('Account deleted');
+
+    const hospitalId = hospitalAdminJwt.hospitalId!.toString();
+    const updatedSchedule = await this.scheduleService.update(
+      scheduleId,
+      hospitalId,
+      dto,
+    );
+
+    const assignment = await this.assignmentService.findById(
+      updatedSchedule.assignmentId.toString(),
+    );
+
+    if (assignment) {
+      const patient = await this.userService
+        .findById(assignment.patientId.toString())
+        .select('name role customId');
+      const exercise = await this.exerciseService.findById(
+        assignment.exerciseId.toString(),
+      );
+
+      if (patient) {
+        this.auditService.record({
+          action: AuditAction.SCHEDULE_UPDATED,
+          actor: {
+            userId: hospitalAdmin._id.toString(),
+            name: hospitalAdmin.name,
+            role: hospitalAdmin.role,
+            customId: hospitalAdmin.customId,
+          },
+          affected: [
+            {
+              userId: patient._id.toString(),
+              name: patient.name,
+              role: patient.role,
+              customId: patient.customId,
+            },
+          ],
+          object: {
+            id: assignment._id.toString(),
+            name: exercise?.name || 'Exercise',
+            type: 'Exercise',
+          },
+        });
+      }
+    }
+
+    return updatedSchedule;
+  }
+
+  async deleteSchedule(scheduleId: string, hospitalAdminJwt: Payload) {
+    const hospitalAdmin = await this.userService
+      .findById(hospitalAdminJwt.id)
+      .select('name role customId');
+
+    if (!hospitalAdmin) throw new ForbiddenException('Account deleted');
+
+    const hospitalId = hospitalAdminJwt.hospitalId!.toString();
+    const deletedSchedule = await this.scheduleService.delete(
+      scheduleId,
+      hospitalId,
+    );
+
+    const assignment = await this.assignmentService.findById(
+      deletedSchedule.assignmentId.toString(),
+    );
+
+    if (assignment) {
+      const patient = await this.userService
+        .findById(assignment.patientId.toString())
+        .select('name role customId');
+      const exercise = await this.exerciseService.findById(
+        assignment.exerciseId.toString(),
+      );
+
+      if (patient) {
+        this.auditService.record({
+          action: AuditAction.SCHEDULE_UPDATED,
+          actor: {
+            userId: hospitalAdmin._id.toString(),
+            name: hospitalAdmin.name,
+            role: hospitalAdmin.role,
+            customId: hospitalAdmin.customId,
+          },
+          affected: [
+            {
+              userId: patient._id.toString(),
+              name: patient.name,
+              role: patient.role,
+              customId: patient.customId,
+            },
+          ],
+          object: {
+            id: assignment._id.toString(),
+            name: exercise?.name || 'Exercise',
+            type: 'Exercise',
+          },
+        });
+      }
+    }
+
+    return deletedSchedule;
   }
 
   findAll() {

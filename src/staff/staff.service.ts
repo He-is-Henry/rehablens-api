@@ -12,6 +12,9 @@ import { SessionResultService } from 'src/session-result/session-result.service'
 import { UserService } from 'src/user/user.service';
 import { AuditService } from 'src/audit/audit.service';
 import { AuditAction } from 'src/audit/audit-action.enum';
+import { ScheduleService } from 'src/schedule/schedule.service';
+import { UpdateScheduleDto } from 'src/schedule/dto/update-schedule.dto';
+import { CreateSchedulesDto } from 'src/schedule/dto/create-schedule.dto';
 
 @Injectable()
 export class StaffService {
@@ -21,6 +24,7 @@ export class StaffService {
     private readonly assignmentService: AssignmentService,
     private readonly sessionResultService: SessionResultService,
     private readonly auditService: AuditService,
+    private readonly scheduleService: ScheduleService,
   ) {}
 
   getPatients(staffId: string, hospitalId: string) {
@@ -217,5 +221,163 @@ export class StaffService {
 
   async deleteAssignment(id: string, staffId: string) {
     return this.updateAssignmentById(id, staffId, { isDeleted: true });
+  }
+
+  async getSchedules(assignmentId: string, staffId: string) {
+    await this.getAssignmentById(assignmentId, staffId);
+    return this.scheduleService.findByAssignment(assignmentId);
+  }
+
+  async createSchedules(
+    assignmentId: string,
+    staffId: string,
+    dto: CreateSchedulesDto,
+  ) {
+    const assignment = await this.getAssignmentById(assignmentId, staffId);
+    const entries = dto.entries;
+
+    const staff = await this.userService
+      .findById(staffId)
+      .select('name role customId');
+
+    if (!staff) throw new ForbiddenException('Account deleted');
+
+    const patient = await this.userService
+      .findById(assignment.patientId.toString())
+      .select('name role customId');
+
+    if (!patient) throw new NotFoundException('Patient not found');
+
+    const result = await this.scheduleService.createMany({
+      assignmentId,
+      patientId: assignment.patientId.toString(),
+      hospitalId: assignment.hospitalId.toString(),
+      entries,
+    });
+
+    if (result.created.length > 0) {
+      this.auditService.record({
+        action: AuditAction.SCHEDULE_UPDATED,
+        actor: {
+          userId: staff._id.toString(),
+          name: staff.name,
+          role: staff.role,
+          customId: staff.customId,
+        },
+        affected: [
+          {
+            userId: patient._id.toString(),
+            name: patient.name,
+            role: patient.role,
+            customId: patient.customId,
+          },
+        ],
+      });
+    }
+
+    return result;
+  }
+
+  async updateSchedule(
+    scheduleId: string,
+    staffId: string,
+    dto: UpdateScheduleDto,
+  ) {
+    const schedule = await this.scheduleService.findById(scheduleId);
+    if (!schedule) throw new NotFoundException('Schedule not found');
+
+    const link = await this.patientHospitalService.findOne(
+      {
+        patientId: new mongoose.Types.ObjectId(schedule.patientId.toString()),
+        staffId: new mongoose.Types.ObjectId(staffId),
+      },
+      [],
+    );
+
+    if (!link) throw new ForbiddenException('Access denied');
+
+    const updatedSchedule = await this.scheduleService.update(
+      scheduleId,
+      schedule.hospitalId.toString(),
+      dto,
+    );
+
+    const staff = await this.userService
+      .findById(staffId)
+      .select('name role customId');
+    const patient = await this.userService
+      .findById(schedule.patientId.toString())
+      .select('name role customId');
+
+    if (staff && patient) {
+      this.auditService.record({
+        action: AuditAction.SCHEDULE_UPDATED,
+        actor: {
+          userId: staff._id.toString(),
+          name: staff.name,
+          role: staff.role,
+          customId: staff.customId,
+        },
+        affected: [
+          {
+            userId: patient._id.toString(),
+            name: patient.name,
+            role: patient.role,
+            customId: patient.customId,
+          },
+        ],
+      });
+    }
+
+    return updatedSchedule;
+  }
+
+  async deleteSchedule(scheduleId: string, staffId: string) {
+    const schedule = await this.scheduleService.findById(scheduleId);
+    if (!schedule) throw new NotFoundException('Schedule not found');
+
+    const link = await this.patientHospitalService.findOne(
+      {
+        patientId: new mongoose.Types.ObjectId(schedule.patientId.toString()),
+        staffId: new mongoose.Types.ObjectId(staffId),
+      },
+      [],
+    );
+
+    if (!link) throw new ForbiddenException('Access denied');
+
+    const deletedSchedule = await this.scheduleService.delete(
+      scheduleId,
+      schedule.hospitalId.toString(),
+    );
+
+    const staff = await this.userService
+      .findById(staffId)
+      .select('name role customId');
+    const patient = await this.userService
+      .findById(schedule.patientId.toString())
+      .select('name role customId');
+
+    if (staff && patient) {
+      this.auditService.record({
+        action: AuditAction.SCHEDULE_UPDATED,
+        actor: {
+          userId: staff._id.toString(),
+          name: staff.name,
+          role: staff.role,
+          customId: staff.customId,
+        },
+        affected: [
+          {
+            userId: patient._id.toString(),
+            name: patient.name,
+            role: patient.role,
+            customId: patient.customId,
+          },
+        ],
+      });
+    }
+
+    return deletedSchedule;
   }
 }

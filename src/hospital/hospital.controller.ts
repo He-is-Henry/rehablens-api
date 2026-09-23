@@ -25,6 +25,8 @@ import {
 } from 'src/staff/dto/update-staff.dto';
 import { UpdateAssignmentDto } from 'src/assignment/dto/update-assignment.dto';
 import { CreateAssignmentDto } from 'src/assignment/dto/create-assignment.dto';
+import { UpdateScheduleDto } from 'src/schedule/dto/update-schedule.dto';
+import { CreateSchedulesDto } from 'src/schedule/dto/create-schedule.dto';
 
 @Controller('hospital')
 export class HospitalController {
@@ -220,5 +222,51 @@ export class HospitalController {
       assignmentId,
       req.user!.hospitalId!,
     );
+  }
+
+  @Roles(UserRole.HOSPITAL_ADMIN)
+  @Get('assignment/:assignmentId/schedules')
+  getSchedules(
+    @Param('assignmentId') assignmentId: string,
+    @Req() req: Request,
+  ) {
+    return this.hospitalService.getSchedules(
+      assignmentId,
+      req.user!.hospitalId!,
+    );
+  }
+
+  @Roles(UserRole.HOSPITAL_ADMIN)
+  @Post('assignment/:assignmentId/schedules')
+  createSchedules(
+    @Param('assignmentId') assignmentId: string,
+    @Body() createSchedulesDto: CreateSchedulesDto,
+    @Req() req: Request,
+  ) {
+    return this.hospitalService.createSchedules(
+      assignmentId,
+      req.user!,
+      createSchedulesDto,
+    );
+  }
+
+  @Roles(UserRole.HOSPITAL_ADMIN)
+  @Patch('schedules/:scheduleId')
+  updateSchedule(
+    @Param('scheduleId') scheduleId: string,
+    @Body() updateScheduleDto: UpdateScheduleDto,
+    @Req() req: Request,
+  ) {
+    return this.hospitalService.updateSchedule(
+      scheduleId,
+      req.user!,
+      updateScheduleDto,
+    );
+  }
+
+  @Roles(UserRole.HOSPITAL_ADMIN)
+  @Delete('schedules/:scheduleId')
+  deleteSchedule(@Param('scheduleId') scheduleId: string, @Req() req: Request) {
+    return this.hospitalService.deleteSchedule(scheduleId, req.user!);
   }
 }
