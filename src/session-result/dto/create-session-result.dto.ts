@@ -1,21 +1,35 @@
-import { IsEnum, IsInt, IsMongoId, Min } from 'class-validator';
+import {
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
 
 export class CreateSessionResultDto {
-  @IsMongoId()
+  @IsString()
+  @IsNotEmpty()
   assignmentId!: string;
 
-  @IsInt()
-  @Min(0)
-  repsCompleted!: number;
+  @IsString()
+  @IsNotEmpty()
+  scheduleId!: string;
 
   @IsInt()
   @Min(1)
   targetReps!: number;
 
+  @IsOptional()
   @IsInt()
   @Min(0)
-  durationSeconds!: number;
+  repsCompleted?: number;
 
-  @IsEnum(['completed', 'abandoned'])
-  status!: 'completed' | 'abandoned';
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  durationSeconds?: number;
+
+  @IsEnum(['in_progress', 'completed', 'abandoned'])
+  status!: 'in_progress' | 'completed' | 'abandoned';
 }

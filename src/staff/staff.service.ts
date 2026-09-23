@@ -182,6 +182,16 @@ export class StaffService {
     Object.assign(assignment, dto);
     const updatedAssignment = await assignment.save();
 
+    const isDeactivating =
+      ('isDeleted' in dto && dto.isDeleted) ||
+      ('status' in dto && dto.status && dto.status !== 'active');
+
+    if (isDeactivating) {
+      await this.scheduleService.deleteFutureByAssignment(
+        assignment._id.toString(),
+      );
+    }
+
     const actor = {
       userId: staff._id.toString(),
       name: staff.name,

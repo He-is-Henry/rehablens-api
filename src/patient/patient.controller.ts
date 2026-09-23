@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Post, Query, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+} from '@nestjs/common';
 import { PatientService } from './patient.service';
 import { Public } from 'src/common/decorators/public.decorator';
 import { CreatePatientDto } from './dto/create-patient.dto';
@@ -6,7 +15,9 @@ import { UserRole } from 'src/user/dto/create-user.dto';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import type { Request } from 'express';
 import type { AssignmentStatus } from 'src/assignment/dto/create-assignment.dto';
-import { CreateSessionResultDto } from 'src/session-result/dto/create-session-result.dto';
+import { FinishSessionResultDto } from 'src/session-result/dto/finish-session-result.dto';
+import { StartSessionResultDto } from 'src/session-result/dto/start-session-result.dto';
+import { GetPatientSchedulesQueryDto } from 'src/session-result/dto/get-patient-schedules-query.dto';
 
 @Controller('patient')
 export class PatientController {
@@ -37,15 +48,37 @@ export class PatientController {
   }
 
   @Roles(UserRole.PATIENT)
-  @Post('session-results')
-  createSessionResult(
+  @Get('schedules')
+  getSchedules(
     @Req() req: Request,
-    @Body() createSessionResultDto: CreateSessionResultDto,
+    @Query() query: GetPatientSchedulesQueryDto,
   ) {
-    return this.patientService.createSessionResult(
-      createSessionResultDto,
-      req.user!.id,
-    );
+    return this.patientService.getSchedules(req.user!.id, query);
+  }
+
+  @Roles(UserRole.PATIENT)
+  @Get('schedules/:scheduleId')
+  getScheduleById(
+    @Req() req: Request,
+    @Param('scheduleId') scheduleId: string,
+  ) {
+    return this.patientService.getScheduleById(req.user!.id, scheduleId);
+  }
+
+  @Roles(UserRole.PATIENT)
+  @Post('session-results/start')
+  startSessionResult(@Req() req: Request, @Body() dto: StartSessionResultDto) {
+    return this.patientService.startSessionResult(dto, req.user!.id);
+  }
+
+  @Roles(UserRole.PATIENT)
+  @Patch('session-results/:id/finish')
+  finishSessionResult(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() dto: FinishSessionResultDto,
+  ) {
+    return this.patientService.finishSessionResult(id, dto, req.user!.id);
   }
 
   @Roles(UserRole.PATIENT)

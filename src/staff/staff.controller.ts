@@ -115,6 +115,9 @@ export class StaffController {
     @Body() updateScheduleDto: UpdateScheduleDto,
     @Req() req: Request,
   ) {
+    console.log(
+      `Updating ${scheduleId} with dto: ${JSON.stringify(updateScheduleDto)}`,
+    );
     return this.staffService.updateSchedule(
       scheduleId,
       req.user!.id,

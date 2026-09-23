@@ -6,6 +6,8 @@ import { PatientHospitalModule } from 'src/patient-hospital/patient-hospital.mod
 import { HospitalModule } from 'src/hospital/hospital.module';
 import { AssignmentModule } from 'src/assignment/assignment.module';
 import { SessionResultModule } from 'src/session-result/session-result.module';
+import { AuditModule } from 'src/audit/audit.module';
+import { ScheduleModule } from 'src/schedule/schedule.module';
 
 @Module({
   imports: [
@@ -14,6 +16,8 @@ import { SessionResultModule } from 'src/session-result/session-result.module';
     HospitalModule,
     AssignmentModule,
     SessionResultModule,
+    AuditModule,
+    ScheduleModule,
   ],
   controllers: [PatientController],
   providers: [PatientService],

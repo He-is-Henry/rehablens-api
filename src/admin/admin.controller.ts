@@ -4,7 +4,7 @@ import { CreateAdminDto } from './dto/create-admin-dto';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { UserRole } from 'src/user/dto/create-user.dto';
 import { RequestLogQueryDto } from 'src/request-log/dto/query.dto';
-import { AuditLogQueryDto } from 'src/session-result/dto/dto/query.dto';
+import { AuditLogQueryDto } from 'src/audit/dto/query.dto';
 
 @Controller('admin')
 export class AdminController {

@@ -6,6 +6,7 @@ import { UserModule } from 'src/user/user.module';
 import { AssignmentModule } from 'src/assignment/assignment.module';
 import { SessionResultModule } from 'src/session-result/session-result.module';
 import { AuditModule } from 'src/audit/audit.module';
+import { ScheduleModule } from 'src/schedule/schedule.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { AuditModule } from 'src/audit/audit.module';
     UserModule,
     AssignmentModule,
     SessionResultModule,
+    ScheduleModule,
   ],
   providers: [StaffService],
   controllers: [StaffController],

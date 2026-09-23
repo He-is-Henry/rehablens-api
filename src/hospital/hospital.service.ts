@@ -583,6 +583,17 @@ export class HospitalService {
 
     Object.assign(assignment, dto);
     await assignment.save();
+
+    const isDeactivating =
+      ('isDeleted' in dto && dto.isDeleted) ||
+      ('status' in dto && dto.status && dto.status !== 'active');
+
+    if (isDeactivating) {
+      await this.scheduleService.deleteFutureByAssignment(
+        assignment._id.toString(),
+      );
+    }
+
     const updatedAssignment = await assignment.populate<{
       exerciseId: ExerciseDocument;
     }>('exerciseId');
@@ -727,9 +738,7 @@ export class HospitalService {
 
     if (!patient) throw new NotFoundException('Patient not found');
 
-    const exercise = await this.exerciseService.findById(
-      assignment.exerciseId.toString(),
-    );
+    const exercise = assignment.exerciseId;
 
     const result = await this.scheduleService.createMany({
       assignmentId,
@@ -757,7 +766,7 @@ export class HospitalService {
         ],
         object: {
           id: assignment._id.toString(),
-          name: exercise?.name || 'Exercise',
+          name: exercise?.name,
           type: 'Exercise',
         },
       });
@@ -792,9 +801,7 @@ export class HospitalService {
       const patient = await this.userService
         .findById(assignment.patientId.toString())
         .select('name role customId');
-      const exercise = await this.exerciseService.findById(
-        assignment.exerciseId.toString(),
-      );
+      const exercise = assignment.exerciseId;
 
       if (patient) {
         this.auditService.record({
@@ -846,9 +853,7 @@ export class HospitalService {
       const patient = await this.userService
         .findById(assignment.patientId.toString())
         .select('name role customId');
-      const exercise = await this.exerciseService.findById(
-        assignment.exerciseId.toString(),
-      );
+      const exercise = assignment.exerciseId;
 
       if (patient) {
         this.auditService.record({

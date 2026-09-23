@@ -6,6 +6,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Assignment } from './assignment.schema';
 import { Model } from 'mongoose';
+import { ExerciseDocument } from 'src/exercise/exercise.schema';
 
 @Injectable()
 export class AssignmentService {
@@ -60,6 +61,6 @@ export class AssignmentService {
   findById(id: string) {
     return this.assignmentModel
       .findOne({ _id: id, isDeleted: false })
-      .populate('exerciseId');
+      .populate<{ exerciseId: ExerciseDocument }>('exerciseId');
   }
 }

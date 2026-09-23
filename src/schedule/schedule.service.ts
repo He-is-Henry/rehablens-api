@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import mongoose, { Model } from 'mongoose';
 import { Schedule } from './schedule.schema';
 
 type ScheduleEntry = {
@@ -118,8 +118,8 @@ export class ScheduleService {
       if (conflict)
         throw new ConflictException('A schedule already exists on that date');
     }
-
     Object.assign(schedule, dto);
+
     return schedule.save();
   }
 
@@ -135,5 +135,20 @@ export class ScheduleService {
 
   deleteMany(ids: string[]) {
     return this.scheduleModel.deleteMany({ _id: { $in: ids } });
+  }
+
+  async deleteFutureByAssignment(assignmentId: string) {
+    const today = new Date().toISOString().split('T')[0];
+
+    return this.scheduleModel.deleteMany({
+      assignmentId: new mongoose.Types.ObjectId(assignmentId),
+      scheduledDate: { $gte: today },
+    });
+  }
+
+  async deleteAllByAssignment(assignmentId: string) {
+    return this.scheduleModel.deleteMany({
+      assignmentId: new mongoose.Types.ObjectId(assignmentId),
+    });
   }
 }

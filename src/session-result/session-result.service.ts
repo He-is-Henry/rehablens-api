@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, QueryFilter } from 'mongoose';
 import { SessionResult, SessionResultDocument } from './session-result.schema';
 import { CreateSessionResultDto } from './dto/create-session-result.dto';
+import { UpdateSessionResultDto } from './dto/update-session-result';
 
 @Injectable()
 export class SessionResultService {
@@ -14,7 +15,18 @@ export class SessionResultService {
   create(dto: CreateSessionResultDto & { patientId: string }) {
     return this.sessionResultModel.create({
       ...dto,
-      completedAt: new Date(),
+      repsCompleted: dto.repsCompleted ?? 0,
+      durationSeconds: dto.durationSeconds ?? 0,
+    });
+  }
+
+  findById(id: string) {
+    return this.sessionResultModel.findById(id);
+  }
+
+  update(id: string, dto: UpdateSessionResultDto) {
+    return this.sessionResultModel.findByIdAndUpdate(id, dto, {
+      new: true,
     });
   }
 
