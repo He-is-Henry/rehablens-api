@@ -122,6 +122,12 @@ export class ScheduleService {
     return schedule.save();
   }
 
+  async incrementCompletedCount(id: string) {
+    return this.scheduleModel.findByIdAndUpdate(id, {
+      $inc: { completedCount: 1 },
+    });
+  }
+
   async delete(id: string, hospitalId: string) {
     const schedule = await this.findById(id);
     if (!schedule) throw new NotFoundException('Schedule not found');

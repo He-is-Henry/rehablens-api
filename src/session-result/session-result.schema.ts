@@ -31,9 +31,17 @@ export class SessionResult {
   })
   status!: 'in_progress' | 'completed' | 'abandoned';
 
-  @Prop({ type: Date })
+  @Prop({ default: 0 })
+  pointsAwarded!: number;
+
+  @Prop({ type: Date, default: Date.now })
   completedAt?: Date;
 }
 
 export type SessionResultDocument = SessionResult & Document;
 export const SessionResultSchema = SchemaFactory.createForClass(SessionResult);
+
+SessionResultSchema.index(
+  { scheduleId: 1, status: 1 },
+  { unique: true, partialFilterExpression: { status: 'in_progress' } },
+);

@@ -1,4 +1,4 @@
-import { IsEnum, IsInt, IsOptional, Min } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
 
 export class FinishSessionResultDto {
   @IsInt()
@@ -12,4 +12,7 @@ export class FinishSessionResultDto {
   @IsOptional()
   @IsEnum(['completed', 'abandoned'])
   status?: 'completed' | 'abandoned';
+
+  @IsString()
+  timeZone!: string;
 }

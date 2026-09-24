@@ -20,4 +20,7 @@ export class UpdateSessionResultDto {
   @Type(() => Date)
   @IsDate()
   completedAt?: Date;
+
+  @IsInt()
+  pointsAwarded!: number;
 }

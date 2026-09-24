@@ -9,11 +9,46 @@ import {
   PatientHospital,
   PatientHospitalDocument,
 } from './patient-hospital.schema';
-import { Model } from 'mongoose';
+import { Model, QueryFilter } from 'mongoose';
 import { CreatePatientHospitalDto } from './dto/create-patient-hospital.dto';
 import { UserService } from 'src/user/user.service';
 import mongoose from 'mongoose';
 import { UserDocument } from 'src/user/user.schema';
+import { Types } from 'mongoose';
+
+export interface PopulatedPatient {
+  _id: Types.ObjectId;
+  name: string;
+  email: string;
+  customId: string;
+}
+
+export interface PopulatedStaff {
+  _id: Types.ObjectId;
+  name: string;
+  email: string;
+  customId: string;
+}
+
+export interface PopulatedHospital {
+  _id: Types.ObjectId;
+  name: string;
+  address: string;
+  email: string;
+  customId: string;
+}
+
+type PopulatedFieldsMap = {
+  patientId: PopulatedPatient;
+  staffId: PopulatedStaff;
+  hospitalId: PopulatedHospital;
+};
+
+type PopulatePath = keyof PopulatedFieldsMap;
+
+export type WithPopulatedPaths<Doc, Paths extends PopulatePath[]> = Doc & {
+  [K in Paths[number]]: PopulatedFieldsMap[K];
+};
 
 @Injectable()
 export class PatientHospitalService {
@@ -53,42 +88,54 @@ export class PatientHospitalService {
     });
   }
 
-  find(
-    filter: Partial<PatientHospitalDocument>,
-    populate: ('patientId' | 'staffId' | 'hospitalId')[],
-  ) {
-    type PopulatePath = 'patientId' | 'staffId' | 'hospitalId';
+  async find<P extends PopulatePath[]>(
+    filter: QueryFilter<PatientHospitalDocument>,
+    populate: P,
+  ): Promise<WithPopulatedPaths<PatientHospitalDocument, P>[]> {
+    type LocalPopulatePath = 'patientId' | 'staffId' | 'hospitalId';
 
-    const POPULATE_FIELDS: Record<PopulatePath, string> = {
+    const POPULATE_FIELDS: Record<LocalPopulatePath, string> = {
       patientId: 'name email customId',
       staffId: 'name email customId',
       hospitalId: 'name address email customId',
     };
 
-    return this.patientHospitalModel.find(filter).populate(
+    const result = await this.patientHospitalModel.find(filter).populate(
       populate.map((p) => ({
         path: p,
         select: POPULATE_FIELDS[p],
       })),
     );
+
+    return result as unknown as WithPopulatedPaths<
+      PatientHospitalDocument,
+      P
+    >[];
   }
 
-  findOne(
-    filter: Partial<PatientHospitalDocument>,
-    populate: ('patientId' | 'staffId' | 'hospitalId')[],
-  ) {
-    type PopulatePath = 'patientId' | 'staffId' | 'hospitalId';
-    const POPULATE_FIELDS: Record<PopulatePath, string> = {
+  async findOne<P extends PopulatePath[]>(
+    filter: QueryFilter<PatientHospitalDocument>,
+    populate: P,
+  ): Promise<WithPopulatedPaths<PatientHospitalDocument, P> | null> {
+    type LocalPopulatePath = 'patientId' | 'staffId' | 'hospitalId';
+
+    const POPULATE_FIELDS: Record<LocalPopulatePath, string> = {
       patientId: 'name email customId',
       staffId: 'name email customId',
       hospitalId: 'name address email customId',
     };
-    return this.patientHospitalModel.findOne(filter).populate(
+
+    const result = await this.patientHospitalModel.findOne(filter).populate(
       populate.map((p) => ({
         path: p,
         select: POPULATE_FIELDS[p],
       })),
     );
+
+    return result as unknown as WithPopulatedPaths<
+      PatientHospitalDocument,
+      P
+    > | null;
   }
 
   findById(id: string) {

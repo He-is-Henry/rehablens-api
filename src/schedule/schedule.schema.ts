@@ -20,6 +20,9 @@ export class Schedule {
 
   @Prop({ type: Number, default: null })
   maxSessions!: number | null;
+
+  @Prop({ default: 0 })
+  completedCount!: number;
 }
 
 export type ScheduleDocument = Schedule & Document;

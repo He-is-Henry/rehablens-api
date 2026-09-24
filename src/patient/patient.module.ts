@@ -8,6 +8,7 @@ import { AssignmentModule } from 'src/assignment/assignment.module';
 import { SessionResultModule } from 'src/session-result/session-result.module';
 import { AuditModule } from 'src/audit/audit.module';
 import { ScheduleModule } from 'src/schedule/schedule.module';
+import { LeaderboardModule } from 'src/leaderboard/leaderboard.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { ScheduleModule } from 'src/schedule/schedule.module';
     SessionResultModule,
     AuditModule,
     ScheduleModule,
+    LeaderboardModule,
   ],
   controllers: [PatientController],
   providers: [PatientService],

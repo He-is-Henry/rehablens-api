@@ -114,4 +114,13 @@ export class PatientController {
   getAssignmentById(@Req() req: Request, @Param('id') id: string) {
     return this.patientService.getAssignmentById(id, req.user!.id);
   }
+
+  @Roles(UserRole.PATIENT)
+  @Get('leaderboard')
+  getLeaderboard(
+    @Req() req: Request,
+    @Query('timeframe') timeframe: 'weekly' | 'lifetime' = 'weekly',
+  ) {
+    return this.patientService.getLeaderboard(req.user!.id, timeframe);
+  }
 }

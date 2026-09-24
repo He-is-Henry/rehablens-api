@@ -36,6 +36,15 @@ export class User {
 
   @Prop()
   deletedAt?: Date;
+
+  @Prop({ type: [String], default: [] })
+  conditions!: string[];
+
+  @Prop({ default: 0 })
+  currentStreak!: number;
+
+  @Prop({ type: String, default: null })
+  lastCompletedDate!: string | null;
 }
 
 export type UserDocument = User & Document;

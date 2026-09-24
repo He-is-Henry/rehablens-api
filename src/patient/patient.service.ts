@@ -19,6 +19,10 @@ import { FinishSessionResultDto } from 'src/session-result/dto/finish-session-re
 import { StartSessionResultDto } from 'src/session-result/dto/start-session-result.dto';
 import { GetPatientSchedulesQueryDto } from 'src/session-result/dto/get-patient-schedules-query.dto';
 import { SessionResultService } from 'src/session-result/session-result.service';
+import {
+  LeaderboardHospital,
+  LeaderboardService,
+} from 'src/leaderboard/leaderboard.service';
 
 @Injectable()
 export class PatientService {
@@ -30,6 +34,7 @@ export class PatientService {
     private readonly assignmentService: AssignmentService,
     private readonly scheduleService: ScheduleService,
     private readonly auditService: AuditService,
+    private readonly leaderboardService: LeaderboardService,
   ) {}
 
   async create(createPatientDto: CreatePatientDto) {
@@ -205,6 +210,19 @@ export class PatientService {
       );
     }
 
+    // 1. Check if a session is already in progress for this schedule
+    const existingSession = await this.sessionResultService.findOne({
+      scheduleId: dto.scheduleId,
+      patientId,
+      status: 'in_progress',
+    });
+
+    // 2. Return existing session to make endpoint idempotent
+    if (existingSession) {
+      return existingSession;
+    }
+
+    // 3. Otherwise, create a new session result
     return this.sessionResultService.create({
       assignmentId: dto.assignmentId,
       scheduleId: dto.scheduleId,
@@ -234,44 +252,293 @@ export class PatientService {
 
     const status = dto.status ?? 'completed';
 
+    // Early escape for abandoned sessions to avoid processing downstream rules
+    if (status !== 'completed') {
+      const updatedAbandoned = await this.sessionResultService.update(id, {
+        status: 'abandoned',
+        repsCompleted: dto.repsCompleted ?? 0,
+        durationSeconds: dto.durationSeconds ?? 0,
+        completedAt: new Date(),
+        pointsAwarded: 0,
+      });
+
+      return {
+        session: updatedAbandoned,
+        pointsAwarded: 0,
+        streakExtended: false,
+        newStreak: undefined,
+        rankMovedUp: false,
+        previousRank: -1,
+        newRank: -1,
+      };
+    }
+
+    const assignment = await this.assignmentService.findById(
+      session.assignmentId.toString(),
+    );
+    const exercise = assignment?.exerciseId;
+
+    const pointsAwarded = this.sessionResultService.calculatePoints({
+      repsCompleted: dto.repsCompleted,
+      targetReps: session.targetReps,
+      holdSeconds: exercise?.holdSeconds ?? 0,
+      repTriggerCount: exercise?.repTriggers?.length ?? 1,
+    });
+
+    const myLinks = await this.patientHospitalService.find(
+      { verified: true, patientId: new mongoose.Types.ObjectId(patientId) },
+      [],
+    );
+
+    const hospitalIdStrings = myLinks.map((l) => l.hospitalId.toString());
+
+    // Snapshot pre-completion standings
+    const initialRanks = hospitalIdStrings.map((hId) => ({
+      hospitalId: hId,
+      rank: this.leaderboardService.getRank(patientId, hId, 'lifetime'),
+    }));
+
+    // 3. Save performance metrics to the database
     const updated = await this.sessionResultService.update(id, {
       repsCompleted: dto.repsCompleted,
       durationSeconds: dto.durationSeconds,
-      status,
+      status: 'completed',
       completedAt: new Date(),
+      pointsAwarded,
     });
 
-    if (status === 'completed') {
-      const patient = await this.userService
-        .findById(patientId)
-        .select('name role customId');
+    // 4. Update the corresponding execution counters
+    const scheduleId = updated?.scheduleId;
+    if (scheduleId) {
+      await this.scheduleService.incrementCompletedCount(scheduleId.toString());
+    }
 
-      if (patient) {
-        this.auditService.record({
-          action: AuditAction.SESSION_COMPLETED,
-          actor: {
+    // 5. Invalidate outdated caches and force an instant update loop to calculate new ranks
+    this.leaderboardService.invalidate(hospitalIdStrings);
+
+    let rankMovedUp = false;
+    let previousRank = -1;
+    let newRank = -1;
+
+    for (const hId of hospitalIdStrings) {
+      await this.getLeaderboard(patientId, 'lifetime');
+
+      const oldRankInfo = initialRanks.find((r) => r.hospitalId === hId);
+      const nextRank = this.leaderboardService.getRank(
+        patientId,
+        hId,
+        'lifetime',
+      );
+
+      if (
+        oldRankInfo &&
+        oldRankInfo.rank !== -1 &&
+        nextRank !== -1 &&
+        nextRank < oldRankInfo.rank
+      ) {
+        rankMovedUp = true;
+        previousRank = oldRankInfo.rank;
+        newRank = nextRank;
+      }
+    }
+
+    // 6. Enforce early return if patient profile target lookup fails
+    const patient = await this.userService
+      .findById(patientId)
+      .select('name role customId currentStreak lastCompletedDate');
+
+    if (!patient) {
+      return {
+        session: updated,
+        pointsAwarded,
+        streakExtended: false,
+        newStreak: undefined,
+        rankMovedUp,
+        previousRank,
+        newRank,
+      };
+    }
+
+    // 7. Process remaining streak calculations and records
+    const today = this.getLocalDateString(dto.timeZone);
+    const yesterday = this.getYesterdayDateString(today);
+    const currentStreak = patient.currentStreak ?? 0;
+    let streakExtended = false;
+    let newStreak: number;
+
+    if (patient.lastCompletedDate === today) {
+      newStreak = currentStreak;
+    } else if (patient.lastCompletedDate === yesterday) {
+      newStreak = currentStreak + 1;
+      streakExtended = true;
+    } else {
+      newStreak = 1;
+      streakExtended = true;
+    }
+
+    patient.currentStreak = newStreak;
+    patient.lastCompletedDate = today;
+    await patient.save();
+
+    if (exercise) {
+      this.auditService.record({
+        action: AuditAction.SESSION_COMPLETED,
+        actor: {
+          userId: patient._id.toString(),
+          name: patient.name,
+          role: patient.role,
+          customId: patient.customId,
+        },
+        object: {
+          id: exercise._id.toString(),
+          name: exercise.name,
+          type: 'exercise',
+        },
+        affected: [
+          {
             userId: patient._id.toString(),
             name: patient.name,
             role: patient.role,
             customId: patient.customId,
           },
-          affected: [
-            {
-              userId: patient._id.toString(),
-              name: patient.name,
-              role: patient.role,
-              customId: patient.customId,
-            },
-          ],
-        });
-      }
+        ],
+      });
     }
 
-    return updated;
+    return {
+      session: updated,
+      pointsAwarded,
+      streakExtended,
+      newStreak,
+      rankMovedUp,
+      previousRank,
+      newRank,
+    };
+  }
+
+  private getLocalDateString(timeZone: string = 'UTC'): string {
+    try {
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+      const parts = formatter.formatToParts(new Date());
+      const getPart = (type: string) =>
+        parts.find((p) => p.type === type)?.value;
+
+      return `${getPart('year')}-${getPart('month')}-${getPart('day')}`;
+    } catch {
+      return new Date().toISOString().split('T')[0];
+    }
+  }
+
+  private getYesterdayDateString(todayStr: string): string {
+    const [year, month, day] = todayStr.split('-').map(Number);
+    const yesterdayObj = new Date(Date.UTC(year, month - 1, day - 1));
+    return yesterdayObj.toISOString().split('T')[0];
   }
 
   async getSessionResults(patientId: string) {
     return this.sessionResultService.findByPatient(patientId);
+  }
+
+  async getLeaderboard(id: string, timeframe: 'weekly' | 'lifetime') {
+    const patient = await this.userService.findById(id);
+    if (!patient) throw new NotFoundException();
+
+    // Patient's own verified links
+    const myLinks = await this.patientHospitalService.find(
+      { verified: true, patientId: new mongoose.Types.ObjectId(id) },
+      [],
+    );
+    const hospitalIds = myLinks.map((l) => l.hospitalId);
+    if (!hospitalIds.length) return [];
+
+    const hospitalIdStrings = hospitalIds.map((hId) => hId.toString());
+    const finalLeaderboard: LeaderboardHospital[] = [];
+    const hospitalsToFetchFromDb: mongoose.Types.ObjectId[] = [];
+
+    // 1. Try serving individual hospital blocks from memory cache first
+    for (const hId of hospitalIdStrings) {
+      const cachedData = this.leaderboardService.get(hId, timeframe);
+      if (cachedData) {
+        finalLeaderboard.push(cachedData);
+      } else {
+        hospitalsToFetchFromDb.push(new mongoose.Types.ObjectId(hId));
+      }
+    }
+
+    // If every linked hospital hit the cache, short-circuit immediately!
+    if (hospitalsToFetchFromDb.length === 0) {
+      return finalLeaderboard;
+    }
+
+    // 2. Otherwise, fall back to aggregate lookups ONLY for missing cache blocks
+    const allLinks = await this.patientHospitalService.find(
+      { verified: true, hospitalId: { $in: hospitalsToFetchFromDb } },
+      ['patientId', 'hospitalId'],
+    );
+
+    const leaderboardRows =
+      await this.sessionResultService.getLeaderboardPoints(
+        hospitalsToFetchFromDb,
+        timeframe,
+      );
+
+    const pointsByKey = new Map<string, number>();
+
+    for (const row of leaderboardRows) {
+      pointsByKey.set(
+        `${row.hospitalId.toString()}:${row.patientId.toString()}`,
+        row.totalPoints,
+      );
+    }
+
+    const tempMap = new Map<
+      string,
+      {
+        hospitalId: string;
+        hospitalName: string;
+        patients: {
+          patientId: string;
+          name: string;
+          customId: string;
+          points: number;
+        }[];
+      }
+    >();
+
+    for (const link of allLinks) {
+      const hId = link.hospitalId._id.toString();
+      const hName = link.hospitalId.name;
+      const p = link.patientId;
+
+      if (!tempMap.has(hId)) {
+        tempMap.set(hId, {
+          hospitalId: hId,
+          hospitalName: hName,
+          patients: [],
+        });
+      }
+
+      tempMap.get(hId)!.patients.push({
+        patientId: p._id.toString(),
+        name: p.name,
+        customId: p.customId,
+        points: pointsByKey.get(`${hId}:${p._id.toString()}`) ?? 0,
+      });
+    }
+
+    // 3. Sort, commit freshly aggregated rows to the cache, and bundle to response
+    for (const [hId, data] of tempMap.entries()) {
+      data.patients.sort((a, b) => b.points - a.points);
+      this.leaderboardService.set(hId, timeframe, data);
+      finalLeaderboard.push(data);
+    }
+
+    return finalLeaderboard;
   }
 
   async getSessionResultsByAssignment(assignmentId: string, patientId: string) {
