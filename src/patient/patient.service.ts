@@ -212,19 +212,16 @@ export class PatientService {
       );
     }
 
-    // 1. Check if a session is already in progress for this schedule
     const existingSession = await this.sessionResultService.findOne({
       scheduleId: dto.scheduleId,
       patientId,
       status: 'in_progress',
     });
 
-    // 2. Return existing session to make endpoint idempotent
     if (existingSession) {
       return existingSession;
     }
 
-    // 3. Otherwise, create a new session result
     return this.sessionResultService.create({
       assignmentId: dto.assignmentId,
       scheduleId: dto.scheduleId,
@@ -280,30 +277,6 @@ export class PatientService {
           status: 'in_progress',
         });
       }
-
-      const assignment = await this.assignmentService.findById(
-        dto.assignmentId,
-      );
-      if (!assignment) throw new NotFoundException('Assignment not found');
-      if (assignment.patientId.toString() !== patientId)
-        throw new ForbiddenException('Access denied');
-      if (assignment.status !== 'active')
-        throw new ForbiddenException('Inactive assignment');
-
-      const schedule = await this.scheduleService.findById(dto.scheduleId);
-      if (!schedule) throw new NotFoundException('Schedule not found');
-      if (!this.isWithinGraceWindow(schedule.scheduledDate, dto.timeZone))
-        throw new ForbiddenException('This schedule is no longer available');
-
-      session = await this.sessionResultService.create({
-        assignmentId: dto.assignmentId,
-        scheduleId: dto.scheduleId,
-        patientId,
-        targetReps: assignment.customReps ?? assignment.exerciseId.targetReps,
-        repsCompleted: 0,
-        durationSeconds: 0,
-        status: 'in_progress',
-      });
     }
 
     if (session.patientId.toString() !== patientId) {
