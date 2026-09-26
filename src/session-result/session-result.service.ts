@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, QueryFilter, Types } from 'mongoose';
+import { Model, QueryFilter, Types, UpdateQuery } from 'mongoose';
 import { SessionResult, SessionResultDocument } from './session-result.schema';
 import { CreateSessionResultDto } from './dto/create-session-result.dto';
 import { UpdateSessionResultDto } from './dto/update-session-result';
@@ -48,6 +48,13 @@ export class SessionResultService {
     return this.sessionResultModel.findByIdAndUpdate(id, dto, {
       new: true,
     });
+  }
+
+  updateMany(
+    filter: QueryFilter<SessionResultDocument>,
+    update: UpdateQuery<SessionResultDocument>,
+  ) {
+    return this.sessionResultModel.updateMany(filter, update);
   }
 
   findByAssignment(assignmentId: string) {

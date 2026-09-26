@@ -1,8 +1,14 @@
 import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
 
 export class FinishSessionResultDto {
+  @IsString()
+  scheduleId?: string;
+
+  @IsString()
+  assignmentId?: string;
+
   @IsInt()
-  @Min(0)
+  @Min(1)
   repsCompleted!: number;
 
   @IsInt()

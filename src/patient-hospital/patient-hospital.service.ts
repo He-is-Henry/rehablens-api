@@ -163,9 +163,13 @@ export class PatientHospitalService {
 
   assignStaff(linkId: string, staffId: string) {
     return this.patientHospitalModel
-      .findByIdAndUpdate(linkId, {
-        staffId: new mongoose.Types.ObjectId(staffId),
-      })
+      .findByIdAndUpdate(
+        linkId,
+        {
+          staffId: new mongoose.Types.ObjectId(staffId),
+        },
+        { returnDocument: 'after' },
+      )
       .populate<{ staffId: UserDocument; patientId: UserDocument }>(
         'staffId patientId',
       );

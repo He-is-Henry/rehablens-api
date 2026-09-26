@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -23,6 +24,7 @@ import {
   LeaderboardHospital,
   LeaderboardService,
 } from 'src/leaderboard/leaderboard.service';
+import { SessionResultDocument } from 'src/session-result/session-result.schema';
 
 @Injectable()
 export class PatientService {
@@ -239,28 +241,68 @@ export class PatientService {
     dto: FinishSessionResultDto,
     patientId: string,
   ) {
-    const session = await this.sessionResultService.findById(id);
-    if (!session) throw new NotFoundException('Session result not found');
+    let session: SessionResultDocument | null = null;
+
+    if (!id.startsWith('offline')) {
+      session = await this.sessionResultService.findById(id);
+    }
+
+    if (!session) {
+      if (!dto.assignmentId || !dto.scheduleId) throw new BadRequestException();
+
+      await this.sessionResultService.updateMany(
+        { scheduleId: dto.scheduleId, patientId, status: 'in_progress' },
+        { status: 'abandoned', completedAt: new Date() },
+      );
+
+      const assignment = await this.assignmentService.findById(
+        dto.assignmentId,
+      );
+      if (!assignment) throw new NotFoundException('Assignment not found');
+      if (assignment.patientId.toString() !== patientId)
+        throw new ForbiddenException('Access denied');
+      if (assignment.status !== 'active')
+        throw new ForbiddenException('Inactive assignment');
+
+      const schedule = await this.scheduleService.findById(dto.scheduleId);
+      if (!schedule) throw new NotFoundException('Schedule not found');
+      if (!this.isWithinGraceWindow(schedule.scheduledDate, dto.timeZone))
+        throw new ForbiddenException('This schedule is no longer available');
+
+      session = await this.sessionResultService.create({
+        assignmentId: dto.assignmentId,
+        scheduleId: dto.scheduleId,
+        patientId,
+        targetReps: assignment.customReps ?? assignment.exerciseId.targetReps,
+        repsCompleted: 0,
+        durationSeconds: 0,
+        status: 'in_progress',
+      });
+    }
 
     if (session.patientId.toString() !== patientId) {
       throw new ForbiddenException('Access denied');
     }
 
     if (session.status !== 'in_progress') {
+      console.log(session.status);
+
       throw new ForbiddenException('Session is already finalized');
     }
 
     const status = dto.status ?? 'completed';
 
-    // Early escape for abandoned sessions to avoid processing downstream rules
     if (status !== 'completed') {
-      const updatedAbandoned = await this.sessionResultService.update(id, {
-        status: 'abandoned',
-        repsCompleted: dto.repsCompleted ?? 0,
-        durationSeconds: dto.durationSeconds ?? 0,
-        completedAt: new Date(),
-        pointsAwarded: 0,
-      });
+      const updatedAbandoned = await this.sessionResultService.update(
+        session._id.toString(),
+        {
+          status: 'abandoned',
+          repsCompleted: dto.repsCompleted ?? 0,
+          durationSeconds: dto.durationSeconds ?? 0,
+          completedAt: new Date(),
+          pointsAwarded: 0,
+        },
+      );
 
       return {
         session: updatedAbandoned,
@@ -299,13 +341,16 @@ export class PatientService {
     }));
 
     // 3. Save performance metrics to the database
-    const updated = await this.sessionResultService.update(id, {
-      repsCompleted: dto.repsCompleted,
-      durationSeconds: dto.durationSeconds,
-      status: 'completed',
-      completedAt: new Date(),
-      pointsAwarded,
-    });
+    const updated = await this.sessionResultService.update(
+      session._id.toString(),
+      {
+        repsCompleted: dto.repsCompleted,
+        durationSeconds: dto.durationSeconds,
+        status: 'completed',
+        completedAt: new Date(),
+        pointsAwarded,
+      },
+    );
 
     // 4. Update the corresponding execution counters
     const scheduleId = updated?.scheduleId;
