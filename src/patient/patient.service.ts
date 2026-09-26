@@ -250,10 +250,36 @@ export class PatientService {
     if (!session) {
       if (!dto.assignmentId || !dto.scheduleId) throw new BadRequestException();
 
-      await this.sessionResultService.updateMany(
-        { scheduleId: dto.scheduleId, patientId, status: 'in_progress' },
-        { status: 'abandoned', completedAt: new Date() },
-      );
+      session = await this.sessionResultService.findOne({
+        scheduleId: dto.scheduleId,
+        patientId,
+        status: 'in_progress',
+      });
+      if (!session) {
+        const assignment = await this.assignmentService.findById(
+          dto.assignmentId,
+        );
+        if (!assignment) throw new NotFoundException('Assignment not found');
+        if (assignment.patientId.toString() !== patientId)
+          throw new ForbiddenException('Access denied');
+        if (assignment.status !== 'active')
+          throw new ForbiddenException('Inactive assignment');
+
+        const schedule = await this.scheduleService.findById(dto.scheduleId);
+        if (!schedule) throw new NotFoundException('Schedule not found');
+        if (!this.isWithinGraceWindow(schedule.scheduledDate, dto.timeZone))
+          throw new ForbiddenException('This schedule is no longer available');
+
+        session = await this.sessionResultService.create({
+          assignmentId: dto.assignmentId,
+          scheduleId: dto.scheduleId,
+          patientId,
+          targetReps: assignment.customReps ?? assignment.exerciseId.targetReps,
+          repsCompleted: 0,
+          durationSeconds: 0,
+          status: 'in_progress',
+        });
+      }
 
       const assignment = await this.assignmentService.findById(
         dto.assignmentId,
